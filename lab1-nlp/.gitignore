@@ -1,0 +1,19 @@
+# Entorno virtual
+.venv/
+
+# Datos de NLTK (se descargan con nltk.download)
+nltk_data/
+
+# Cache de Python
+__pycache__/
+*.pyc
+
+# Checkpoints de Jupyter
+.ipynb_checkpoints/
+
+# Sistema
+.DS_Store
+
+#Documentacion de desarrollo
+devdocs/*
+
