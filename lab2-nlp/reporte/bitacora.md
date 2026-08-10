@@ -247,8 +247,84 @@ coincide exactamente porque el stemming redistribuye los conteos (ver H-09).
 
 ---
 
+## Sección 4 — TF-IDF
+
+**R-08. La matriz TF-IDF tiene la misma forma que la de BoW: `(1140, 13080)`.**
+No cambia qué se representa sino cuánto pesa cada término: las celdas pasan de `int64` a pesos
+`float64`. El IDF va de **1.621** (término más extendido) a **7.347** (términos únicos).
+
+**V-04. Se verificaron dos propiedades de `TfidfVectorizer` en vez de darlas por sentadas.**
+1. Todas las filas tienen **norma L2 = 1** (mín. y máx. coinciden en 1.000000). Esto neutraliza la
+   longitud del documento y es la razón de que en la Sección 5 la similitud coseno se reduzca a un
+   producto punto.
+2. El vector `idf_` de sklearn reproduce exactamente `ln((1+n)/(1+df))+1` calculado a mano
+   (`np.allclose` → True). Importa porque es la variante **suavizada** de scikit-learn, no la
+   fórmula de libro de texto, y el reporte debe citar la que realmente se usó.
+
+**D-11. Los 3 documentos se eligen por criterio reproducible, no a dedo.**
+En cada categoría se toma el documento cuya longitud es la más cercana a la mediana de esa
+categoría, para no analizar casos extremos. Resultado: Macroeconomía doc 1010 (248 tokens),
+Sostenibilidad doc 81 (393), Innovación doc 134 (288).
+
+**D-12. Se construyó un glosario raíz → palabra completa para poder leer las tablas.**
+Con raíces cortadas (`desperdici`, `inteligent`, `reapertur`) es imposible juzgar si el resultado
+tiene sentido. El glosario mapea cada raíz a su forma legible más frecuente en el corpus. Es solo
+ayuda de lectura: **todos los cálculos siguen hechos sobre las raíces** (coherente con D-04).
+
+**R-09. Coincidencia entre el top-10 por TF-IDF y el top-10 por conteo:**
+Macroeconomía 6/10, Sostenibilidad 4/10, Innovación 7/10.
+
+**H-12. `bbva` es el mejor ejemplo del efecto del IDF en todo el laboratorio.**
+Es la palabra **más frecuente del documento de Innovación** (8 apariciones) y aun así **no entra**
+al top-10 por TF-IDF. Aparece en 484 de 1,140 documentos (42% del corpus), así que no distingue
+ese artículo de ningún otro. El conteo simple la corona, el IDF la elimina: es la diferencia entre
+ambas medidas concentrada en un solo término. Enlaza con R-02, donde `bbva` ya había salido como
+el unigrama más frecuente del corpus.
+
+**H-13. `sostenible` queda fuera del top-10 del documento de Sostenibilidad.**
+Aparece 4 veces en el documento pero está en 243 documentos del corpus. Dentro de un corpus de
+noticias de sostenibilidad, decir "sostenible" no informa nada; lo informativo es `desperdicio` y
+`envases`. Es un argumento redondo de que el IDF aprende qué es genérico **en este dominio**, algo
+que ninguna lista fija de stopwords del español podría anticipar.
+
+**H-14. El grado de coincidencia entre ambos rankings es informativo por sí mismo.**
+Innovación coincide en 7/10 porque las palabras que más repite (`artificial`, `factory`, `ai`,
+`startups`) ya son raras en el corpus, así que ambos criterios apuntan al mismo lado.
+Sostenibilidad coincide solo en 4/10 porque se apoya en vocabulario común (`productos`, `años`,
+`cada`, `vez`) y ahí el reordenamiento del IDF es máximo. **La coincidencia mide cuán
+especializado es el vocabulario del documento.**
+
+**H-15. TF-IDF saca a la superficie los nombres propios.**
+`Powell`, `Greta Thunberg`, `Sofia`, `Navarra` entran al top-10 apareciendo solo 2 o 3 veces,
+porque su IDF ronda 5–7. El conteo simple no los muestra nunca. Son justamente los términos que
+mejor identifican una noticia concreta.
+
+**H-16. Términos expulsados por el IDF** (top-10 por conteo que no llegan al top-10 por TF-IDF):
+
+| Documento | Término | Veces | IDF | Documentos |
+|---|---|---|---|---|
+| Macroeconomía | `economía` | 3 | 1.70 | 565 de 1,140 |
+| Macroeconomía | `parte` | 3 | 1.69 | 572 |
+| Sostenibilidad | `cada` / `vez` | 4 | 2.10 / 2.16 | 378 / 356 |
+| Sostenibilidad | `sostenible` | 4 | 2.54 | 243 |
+| Innovación | `bbva` | 8 | 1.86 | 484 |
+| Innovación | `empresas` | 6 | 1.88 | 473 |
+
+`cada` y `vez` reaparecen aquí después de haber sido los bigramas de ruido de H-07: el IDF los
+degrada automáticamente, sin necesidad de una lista manual.
+
+**P-03. Dos afirmaciones del borrador se corrigieron contra la fuente antes de fijarlas.**
+Se había escrito que `greta thunberg` era un bigrama (son dos unigramas independientes) y que el
+artículo de Macroeconomía trataba del debate sobre si la inflación era "transitoria". Al leer el
+documento 1010 se confirmó el tema (IPC de junio, "mayor aumento desde 2008", costos de la
+reapertura) pero **no** aparece esa discusión. Ambas se ajustaron a lo que el texto dice. Anotado
+como recordatorio de verificar contra la fuente cualquier interpretación de un documento concreto
+antes de meterla al reporte.
+
+---
+
 ## Pendientes
 
-- Secciones 4 a 6.
+- Secciones 5 y 6.
 - Redactar con palabras propias las discusiones marcadas en el notebook (1.4, 2.6, 3.4).
 - Actualizar en la celda 1.4 el conteo de documentos: `(1142, 13080)` → `(1140, 13080)`.
