@@ -13,19 +13,34 @@
 
 ## Contexto del proyecto
 
-- Laboratorio #1 de NLP: preparación de un corpus ("Spanish News Classification") y EDA.
+- Repositorio de laboratorios del curso de NLP. Un directorio por entrega:
+  `lab1-nlp/` (entregado) y `lab2-nlp/` (en curso).
+- **Lab #1:** preparación del corpus "Spanish News Classification" y EDA. Notebook
+  `lab1-nlp/lab1.ipynb`.
+- **Lab #2:** representaciones básicas de texto (BoW, dispersión/CSR, n-gramas, TF-IDF,
+  similitud coseno). Notebook `lab2-nlp/lab2.ipynb`, **autocontenido**: repite la carga y
+  el pipeline del Lab 1 antes de vectorizar. Vectoriza sobre `tokens_stem` (la salida
+  completa del pipeline), unidos en una columna de texto porque los vectorizadores de
+  scikit-learn reciben strings, no listas de tokens.
 - Corpus en `df_total.csv` (columnas: `url`, `news`, `Type`), **1217 documentos**
   (el archivo tiene ~4570 líneas, pero las noticias traen saltos de línea internos;
   `pd.read_csv` los agrupa correctamente en 1217 filas). 7 categorías. Sin nulos.
-  75 filas totalmente duplicadas y 79 con `news` repetido.
-- Trabajo principal en `lab1.ipynb`.
+  75 filas totalmente duplicadas y 79 con `news` repetido. Tras `drop_duplicates()`
+  quedan **1142 documentos**, que es la base de trabajo de ambos laboratorios.
+  Hay una copia del CSV dentro de cada `labN-nlp/` para que los notebooks sean autónomos.
 
 ## Entorno
 
-- `.venv` local creado con el Python de miniforge (3.13).
-- Librerías: pandas, nltk, matplotlib, wordcloud, jupyter/ipykernel (ver `requirements.txt`).
+- **Compartido y en la raíz del repo**, no dentro de cada laboratorio: `.venv/` y
+  `requirements.txt` viven en `/`. Lo específico de cada entrega (notebook, corpus,
+  reporte, enunciado) vive en su `labN-nlp/`.
+- `.venv` creado con el Python de miniforge (3.13).
+- Librerías: pandas, numpy, nltk, matplotlib, wordcloud, **scikit-learn/scipy** (Lab 2),
+  jupyter/ipykernel.
 - Se usa **solo NLTK** para NLP en español; la "lematización" se hace con
   `SnowballStemmer('spanish')` (técnicamente stemming, no lematización real).
-- Kernel de Jupyter registrado: "Python (lab1-nlp)". Incluye la variable
-  `NLTK_DISABLE_IMPORT_SECURITY=1` para evitar un falso positivo del hook de
-  seguridad de NLTK 3.10 (el `.venv` está dentro del cwd).
+  scikit-learn se usa únicamente para vectorizar (Lab 2), no para tokenizar.
+- Kernel de Jupyter registrado: **"Python (NLP)"** (nombre interno `nlp`). Incluye la
+  variable `NLTK_DISABLE_IMPORT_SECURITY=1` para evitar un falso positivo del hook de
+  seguridad de NLTK 3.10 (el `.venv` está dentro del cwd). Sin esa variable, `import nltk`
+  falla con *"Blocked import of regex from current working directory"*.

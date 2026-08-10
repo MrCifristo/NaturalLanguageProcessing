@@ -23,7 +23,6 @@ usando Python, `pandas` y `NLTK`.
 lab1-nlp/
 ├── lab1.ipynb                     # Notebook: código completo (carga, normalización y EDA)
 ├── df_total.csv                   # Corpus (Spanish News Classification)
-├── requirements.txt               # Dependencias de Python
 ├── README.md
 ├── reporte/
 │   ├── reporte_laboratorio1.md    # Fuente del reporte (Markdown)
@@ -35,30 +34,14 @@ lab1-nlp/
 
 ## Requisitos y configuración del entorno
 
-Entorno virtual local creado con el Python de **miniforge** (3.13):
-
-```bash
-python -m venv .venv
-.venv/bin/pip install -r requirements.txt
-```
-
-Descargar los datos de NLTK necesarios (tokenizador y *stopwords*):
-
-```bash
-.venv/bin/python -c "import nltk; nltk.download('punkt'); nltk.download('punkt_tab'); nltk.download('stopwords')"
-```
-
-Registrar el kernel de Jupyter (incluye la variable `NLTK_DISABLE_IMPORT_SECURITY=1`,
-necesaria porque el `.venv` vive dentro del proyecto):
-
-```bash
-.venv/bin/python -m ipykernel install --user --name lab1-nlp --display-name "Python (lab1-nlp)"
-```
+El entorno virtual y las dependencias son **comunes a todo el repositorio** y viven en la
+raíz (`.venv/` y `requirements.txt`). Ver el
+[README de la raíz](../README.md) para las instrucciones de instalación.
 
 ## Cómo ejecutar
 
 **Notebook:** abrir `lab1.ipynb` en Jupyter/VS Code, seleccionar el kernel
-**"Python (lab1-nlp)"** y ejecutar todas las celdas (Kernel → Restart & Run All).
+**"Python (NLP)"** y ejecutar todas las celdas (Kernel → Restart & Run All).
 Las figuras del EDA se guardan en `reporte/img/`.
 
 **Reporte PDF:** se genera a partir del Markdown con WeasyPrint. WeasyPrint requiere

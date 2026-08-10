@@ -1,0 +1,20 @@
+# Dependencias comunes a todos los laboratorios del curso de NLP.
+# Entorno: .venv en la raíz del repositorio, creado con el Python de miniforge (3.13).
+#   python -m venv .venv
+#   .venv/bin/pip install -r requirements.txt
+
+# --- Datos y gráficos ---
+pandas==3.0.5
+matplotlib==3.11.1
+
+# --- NLP ---
+nltk==3.10.1
+wordcloud==1.9.6
+
+# --- Representaciones de texto (Lab 2: BoW, n-gramas, TF-IDF, similitud coseno) ---
+scikit-learn==1.7.2
+
+# --- Jupyter ---
+jupyter==1.1.1
+notebook==7.6.1
+ipykernel==7.3.0
