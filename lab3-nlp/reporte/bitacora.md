@@ -215,3 +215,96 @@ que es el par a analizar en la Sección 4.
 
 ## Sección 4 — Análisis de errores
 
+**D-11. El par más confundido se identifica sumando las dos direcciones de la matriz, no
+buscando la celda más alta.** La pregunta del enunciado es por confusión *mutua*: se calcula
+`cm[a,b] + cm[b,a]` para los 21 pares posibles. Alianzas ↔ Regulaciones sale con 7 (4+3), muy
+por encima del siguiente (Innovacion ↔ Macroeconomia, 4).
+
+**D-12. Para atribuir culpa a palabras concretas se usa la diferencia de log-verosimilitudes.**
+`culpa(w) = conteo(w) · [log P(w|predicha) − log P(w|real)]`. Naive Bayes decide comparando
+scores, así que lo que importa no es qué palabras son frecuentes en el documento sino cuáles
+aportan más a la categoría equivocada *por encima* de lo que aportan a la correcta. Ordenar por
+esa cantidad da directamente las palabras que inclinaron la balanza.
+
+**H-11. Los 7 errores cruzados se explican por tres causas distintas.**
+1. *El tema arrastra*: doc 667 (aniversario de Uber Taxi, etiquetado Alianzas) se va a
+   Regulaciones por `uber` ×7, `taxistas`, `taxi`. En entrenamiento Uber aparece casi siempre en
+   el conflicto legal con los taxis. La palabra `alianza`, presente una sola vez, no compensa.
+   Igual el doc 72 (`taxistas`, `multas`, `ilegal`).
+2. *La etiqueta original es discutible*: docs 589 y 296 son columnas de opinión sobre elecciones
+   y campañas, etiquetadas Alianzas. El modelo predice Regulaciones por `elecciones`, `pueblo`,
+   `decreto`, `subsidios`, `regulación`. Es defendible que el modelo tenga más razón que la
+   anotación.
+3. *Gana la palabra literal*: doc 756 (convenio MinCiencias–CRC, etiquetado Regulaciones) se va
+   a Alianzas por `alianza` y `convenio`; doc 797 (regionalización de agua potable) se va por
+   `agua`, `potable`, `saneamiento`.
+
+**H-12. El modelo se equivoca con 100 % de confianza en 5 de los 7 errores cruzados.**
+`predict_proba` devuelve 1.00 para la clase incorrecta en los docs 589, 667, 756, 296 y 72. No
+es un empate mal resuelto: el modelo está seguro. Es la firma del supuesto de independencia —
+palabras correlacionadas (`uber`, `taxi`, `taxistas`, `tarifas`) se suman como si fueran
+evidencia independiente, y el score se dispara.
+
+**H-13. Alianzas y Regulaciones comparten 9 de sus 20 palabras más probables.**
+Las compartidas son `colombia`, `empresas`, `hace`, `mercado`, `nueva`, `pago`, `país`, `puede`
+y `servicios`. Cada categoría tiene una sola palabra realmente propia en el tope (`alianza` con
+P = 0.0073 y `regulación` con P = 0.0073); el resto de su vocabulario característico es
+genérico. Explica por qué son el par más confundido: si la noticia no dice literalmente
+"alianza" o "regulación", la decisión queda en manos de palabras que no distinguen nada.
+En contraste, Macroeconomia (`inflación`, `precios`, `tasa`, `crecimiento`) y Sostenibilidad
+(`energía`, `sostenible`, `electricidad`, `agua`) tienen vocabularios propios y son las que
+mejor clasifica.
+
+---
+
+## Sección 5 — Efecto de la representación de texto
+
+**H-14. Recortar el vocabulario a 1000 términos MEJORA el modelo.**
+
+| Representación | Vocabulario | Acc. train | Acc. val | F1 macro val | Vectorizar | Entrenar |
+|---|---|---|---|---|---|---|
+| BoW completo | 10,968 | 0.941 | 0.800 | 0.732 | 0.08 s | 1.9 ms |
+| **BoW max_features=1000** | **1,000** | **0.888** | **0.835** | **0.837** | 0.08 s | 1.3 ms |
+| BoW max_features=5000 | 5,000 | 0.937 | 0.812 | 0.786 | 0.08 s | 1.6 ms |
+| BoW uni+bigramas | 156,417 | 0.989 | 0.759 | 0.680 | 0.28 s | 9.6 ms |
+| BoW uni+bi max_features=5000 | 5,000 | 0.940 | 0.824 | 0.798 | 0.29 s | 1.7 ms |
+| TF-IDF completo | 10,968 | 0.710 | 0.547 | 0.360 | 0.08 s | 1.6 ms |
+
+El barrido completo (200 → 10,968 términos) muestra la curva clásica de sobreajuste: la
+accuracy de entrenamiento crece de forma monótona (0.830 → 0.941) mientras la de validación
+sube hasta 1000 términos (0.835) y luego cae. La brecha entrenamiento–validación baja de
+**14.1 pp a 5.3 pp** al recortar. Las palabras más allá de las primeras mil son demasiado raras
+para generalizar y solo sirven para memorizar.
+
+**H-15. El recorte beneficia sobre todo a las categorías pequeñas.**
+
+| Categoría | Docs en val | F1 completo | F1 con 1000 | Δ |
+|---|---|---|---|---|
+| Reputacion | 4 | 0.400 | 0.889 | **+0.489** |
+| Innovacion | 23 | 0.793 | 0.885 | +0.092 |
+| Otra | 19 | 0.733 | 0.800 | +0.067 |
+| Sostenibilidad | 19 | 0.810 | 0.857 | +0.048 |
+| Regulaciones | 21 | 0.718 | 0.762 | +0.044 |
+| Alianzas | 36 | 0.789 | 0.806 | +0.017 |
+| Macroeconomia | 48 | 0.884 | 0.860 | −0.024 |
+
+Reputacion entrena con 18 documentos: sus estimaciones sobre palabras raras eran ruido, y
+quitarlas la deja decidir con vocabulario frecuente bien medido. Es la razón de que el F1 macro
+suba 10 puntos mientras la accuracy sube solo 3.5: la accuracy la dominan las clases grandes.
+
+**H-16. Los bigramas crudos cuestan 14× más vocabulario y empeoran el desempeño; podados,
+ayudan un poco.** `ngram_range=(1,2)` sin poda: 156,417 términos, 3.5× más tiempo de
+vectorización, 5× más de entrenamiento, accuracy 0.759 (peor que unigramas). Concuerda con el
+Lab #2, donde se midió que **el 80 % de los bigramas aparece una sola vez**: no generalizan,
+solo permiten memorizar (accuracy de entrenamiento 0.989). Con `max_features=5000`, en cambio,
+uni+bi (0.824 / 0.798) supera a los 5000 unigramas solos (0.812 / 0.786): al podar sobreviven
+los bigramas con significado (`banc central`, `cambi climat`). Aun así ninguna configuración con
+bigramas le gana a las 1000 palabras sueltas.
+
+**D-13. El mejor modelo del laboratorio es BoW con `max_features=1000`**, elegido sobre
+validación. Es el que se usa como referencia en la evaluación final sobre prueba.
+
+---
+
+## Sección 6 — Implementación propia de Naive Bayes
+
