@@ -351,3 +351,63 @@ soporta `sample_weight`, clases vacías o `partial_fit`.
 
 ## Sección 7 — Evaluación final y análisis
 
+**H-21. Resultado final sobre el conjunto de prueba (primera y única medición).**
+
+| Modelo | Acc. val | Acc. prueba | F1 macro val | F1 macro prueba |
+|---|---|---|---|---|
+| **BoW max_features=1000 (elegido)** | 0.8353 | **0.8596** | 0.8370 | **0.8578** |
+| BoW completo | 0.8000 | 0.8246 | 0.7324 | 0.7599 |
+| TF-IDF completo | 0.5471 | 0.5731 | 0.3602 | 0.3939 |
+
+El desempeño en prueba es **ligeramente superior** al de validación (+2.4 pp de accuracy), no
+inferior. Es la señal de que no se sobreajustó el conjunto de validación al elegir entre las
+seis configuraciones. El orden entre los tres modelos se conserva, así que las decisiones
+tomadas sobre validación se sostienen sobre datos nuevos.
+
+**H-22. F1 por categoría en prueba:** Macroeconomia 0.91, Regulaciones 0.90, Reputacion 0.89,
+Sostenibilidad 0.89, Innovacion 0.84, Alianzas 0.82, Otra 0.76.
+
+**H-23. Los pares confundidos cambian entre validación y prueba.**
+En validación el par dominante era Alianzas ↔ Regulaciones (7 errores cruzados); en prueba es
+Innovacion ↔ Otra (5), y Alianzas ↔ Regulaciones cae a 2. Con conjuntos de 170 documentos y
+categorías de 4 a 48 ejemplos, el ranking de pares no es estable: conviene reportarlo como
+observación, no como propiedad del corpus.
+
+**H-24. Correspondencia con la similitud coseno del Lab #2 (pregunta 4 del análisis).**
+Coincide en los extremos por vocabulario: Macroeconomia era la 2ª más cohesionada allá
+(intra/inter 2.46×) y es la mejor clasificada aquí; **Alianzas era la peor del Lab #2 (1.12×,
+prácticamente sin cohesión) y vuelve a estar entre las peores aquí** — "alianza" es un tipo de
+evento, no un tema, así que sus noticias no comparten léxico. **No coincide en Reputacion:** era
+la más cohesionada del Lab #2 (2.73×) pero la peor clasificada con vocabulario completo
+(F1 0.40). Su dificultad no viene del vocabulario sino de tener solo 18 documentos de
+entrenamiento, y por eso el recorte a 1000 términos la arregla (0.40 → 0.89). Son dos formas
+distintas de ser una categoría difícil.
+
+---
+
+## Incidencias
+
+**P-03. Algo externo está borrando comentarios y líneas de código del notebook.**
+En tres ocasiones, código escrito y verificado apareció después modificado en disco: los bloques
+de comentarios explicativos posteriores al encabezado `# --- N.N ... ---` desaparecieron, y en
+dos casos se borró además la línea de código inmediatamente siguiente
+(`numerador = conteos_por_clase + self.alpha` en la celda 6.1 y
+`fila = X_val_bow[0].toarray().ravel()` en la 6.3), rompiendo la ejecución con `NameError`.
+Las líneas se restauraron y el notebook completo vuelve a ejecutarse sin errores. Causa no
+identificada: candidatos son un formateador o extensión del editor guardando sobre el archivo.
+**Conviene verificar antes de entregar que el notebook corre de principio a fin.**
+
+---
+
+## Reporte
+
+**D-15. El reporte se ajustó a 4 páginas exactas recortando texto, no contenido.**
+La primera versión ocupaba 5 páginas. Se comprimieron redacciones (sin quitar ninguna cifra ni
+conclusión) y se redujo la matriz de confusión final al 38 % de ancho. Para que siguiera siendo
+legible a ese tamaño, la figura se regeneró con `figsize=(6.4, 4.8)` y fuentes mayores
+(`annot_kws={"size": 13}`) en vez de simplemente escalarla.
+
+**D-16. Figuras incluidas en el reporte:** la curva de desempeño contra tamaño de vocabulario
+(`max_features.png`) y la matriz de confusión sobre prueba (`confusion_prueba.png`). Se dejaron
+fuera `particiones.png` y `confusion_validacion.png`, cuyo contenido queda cubierto por las
+tablas del propio reporte.
