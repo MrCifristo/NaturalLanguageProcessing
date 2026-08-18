@@ -308,3 +308,46 @@ validación. Es el que se usa como referencia en la evaluación final sobre prue
 
 ## Sección 6 — Implementación propia de Naive Bayes
 
+**H-17. La implementación propia reproduce `MultinomialNB` exactamente.**
+Diferencia máxima en log P(w|c): **0.00**. En log P(c): 6.7e-16 (ruido de punto flotante).
+Predicciones idénticas en el **100 %** de los documentos de validación, con y sin recorte de
+vocabulario. Accuracy 0.8000 y F1 macro 0.7324 en ambas, iguales a la Sección 3.
+
+**D-14. El punto delicado del suavizado es el denominador, no el numerador.**
+Sumar α a cada conteo es lo evidente; lo que se olvida es que si se suma α a las 10,968 palabras
+del vocabulario, el total de la categoría crece en α·|V|, no en α. Dividir entre el total
+original deja las "probabilidades" sin sumar 1. En el código se resuelve sumando la fila
+**después** de sumar α (`numerador.sum(axis=1)`), que es la misma cuenta pero imposible de
+equivocar.
+
+**H-18. Sin logaritmos el algoritmo no funciona en absoluto: no da un número pequeño, da cero.**
+El producto directo de las verosimilitudes de un documento de validación con 479 palabras
+(318 términos distintos) es **exactamente 0.0**. Las siete categorías empatarían en cero. Los
+mismos scores en logaritmos son del orden de −4000 y se comparan sin problema. Es la
+justificación práctica —no teórica— de por qué la fórmula se implementa siempre en logaritmos.
+
+**H-19. Entrenar Naive Bayes es contar, no optimizar.**
+No hay iteraciones ni convergencia: agrupar por categoría, sumar conteos, tomar logaritmos. El
+modelo entero son dos tablas (7 valores y 7 × 10,968) y predecir es una multiplicación de
+matrices. Entrena en **0.7–1.9 ms**, mientras que vectorizar el corpus con bigramas tarda 290 ms:
+el costo del laboratorio está en la representación, no en el clasificador. La implementación
+propia sale ligeramente más rápida que `MultinomialNB` solo porque no valida entradas ni
+soporta `sample_weight`, clases vacías o `partial_fit`.
+
+**H-20. Tabla comparativa final (validación).**
+
+| Modelo | Vocabulario | Accuracy | F1 macro | Entrenar |
+|---|---|---|---|---|
+| **BoW max_features=1000** | 1,000 | **0.8353** | **0.8370** | 1.3 ms |
+| BoW max_features=1000 (propia) | 1,000 | 0.8353 | 0.8370 | 0.7 ms |
+| BoW uni+bi, max_features=5000 | 5,000 | 0.8235 | 0.7981 | 1.8 ms |
+| BoW max_features=5000 | 5,000 | 0.8118 | 0.7855 | 1.6 ms |
+| BoW completo | 10,968 | 0.8000 | 0.7324 | 1.9 ms |
+| BoW completo (propia) | 10,968 | 0.8000 | 0.7324 | 1.2 ms |
+| BoW unigramas + bigramas | 156,417 | 0.7588 | 0.6796 | 9.7 ms |
+| TF-IDF completo | 10,968 | 0.5471 | 0.3602 | 1.9 ms |
+
+---
+
+## Sección 7 — Evaluación final y análisis
+
