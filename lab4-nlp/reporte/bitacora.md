@@ -553,3 +553,85 @@ costa de 6.5 puntos de accuracy.
 **H-34. Los errores nuevos son de baja confianza, salvo uno.**
 doc 248 (0.528), doc 360 (0.697), doc 466 (0.743) y doc 1110 (0.998). Tres de los cuatro son casos
 donde el modelo prácticamente no se decide.
+
+---
+
+## Sección 7 — Análisis
+
+**D-17. El conjunto de prueba se usa aquí solo para la línea base.**
+El enunciado pide calcularla explícitamente sobre prueba, y **no implica elegir ningún modelo**:
+predecir siempre la clase mayoritaria no tiene nada que ajustar. Los modelos se comparan con las
+cifras ya medidas en la Sección 4. El modelo `l1` de la Sección 5 se discute con sus cifras de
+**validación**, para no usar prueba en una decisión de modelo.
+
+**H-35. Línea base de clase mayoritaria: accuracy 0.2807, F1 macro 0.0626.**
+
+| Modelo | Accuracy | × base | F1 macro | × base |
+|---|---|---|---|---|
+| **Línea base** (siempre Macroeconomia) | **0.2807** | — | **0.0626** | — |
+| Naive Bayes TF-IDF | 0.5731 | 2.04 | 0.3939 | 6.3 |
+| Naive Bayes BoW | 0.8246 | 2.94 | 0.7599 | 12.1 |
+| Reg. logística TF-IDF | 0.8421 | 3.00 | 0.7699 | 12.3 |
+| **Reg. logística BoW** | **0.8713** | **3.10** | **0.8631** | **13.8** |
+
+La accuracy base es la proporción de Macroeconomia (48 de 171). El mejor modelo la supera por
+**59.1 pp**, ×3.1 — pero en **F1 macro la multiplica por 13.8**. La línea base parece decente en
+accuracy solo porque una categoría concentra el 28 % del corpus; en F1 macro se desenmascara, porque
+seis de las siete categorías obtienen F1 = 0.
+
+**H-36. Ese 0.0626 ya había aparecido en la Sección 5.**
+Es prácticamente el 0.0629 al que colapsaba TF-IDF con `C ≤ 0.01` (H-24). Cuando la penalización
+aplasta los pesos, el modelo **se convierte** literalmente en la línea base.
+
+**H-37. El tiempo de inferencia es idéntico en los tres modelos. Es el dato que decide la Sección 5
+del análisis.**
+
+| Modelo | Entrenamiento | Inferencia (171 docs) | Tamaño | Parámetros ≠ 0 |
+|---|---|---|---|---|
+| Naive Bayes BoW | ≈ 1.7 ms | ≈ 0.17 ms | 1,201 KB | 76,776 |
+| Reg. logística (l2) | ≈ 238 ms | ≈ 0.17 ms | 601 KB | 76,776 |
+| Reg. logística (l1, C=0.1) | ≈ 3 s | ≈ 0.17 ms | 601 KB (**2.5 KB** disperso) | **185** |
+
+Los 140× de diferencia son **de entrenamiento**; predecir es una multiplicación matriz-vector en los
+tres casos. Como en producción se entrena de vez en cuando y se predice constantemente, **el
+argumento de velocidad a favor de Naive Bayes casi desaparece**. Su ventaja real que no se midió es
+`partial_fit`: puede actualizarse con lotes nuevos sin rehacer el ajuste.
+
+El tamaño tampoco favorece a Naive Bayes: ocupa **el doble**, porque `MultinomialNB` guarda además
+los conteos crudos (`feature_count_`). Y el vectorizador (135 KB) es el componente más pesado del
+conjunto: con el modelo `l1`, podar el vocabulario a sus 136 términos lo reduciría a casi nada.
+
+**H-38. Sobre la calibración, el enunciado sugiere lo contrario de lo que se mide.**
+La pregunta 3 propone "necesidad de probabilidades bien calibradas" como criterio, y la intuición
+habitual es que ahí gana Naive Bayes por ser un modelo probabilístico. **Los datos dicen lo
+contrario** (H-33): se equivoca con confianza > 0.99 en 32 de sus 34 errores. Es un mal estimador de
+probabilidades *precisamente por su supuesto*: multiplicar cientos de verosimilitudes correlacionadas
+como si fueran independientes satura el resultado en 0 o 1. Da probabilidades **extremas**, no
+calibradas.
+
+**D-18. Conclusión sobre producción: la regresión logística, pero no por la accuracy.**
+La ventaja en accuracy sobre Naive Bayes con BoW ni siquiera es significativa (H-19, p = 0.13). Las
+razones son el umbral de confianza utilizable (H-33), los 10 puntos de F1 macro (H-20), la versión
+mínima que regala `l1` (H-25: 2.5 KB, F1 macro 0.8343 en validación) y la auditabilidad — que
+permite detectar problemas como los pesos altos en `research` y `podcast`, pistas de la fuente y no
+del tema (H-17).
+
+La objeción real no es el algoritmo: es que el mejor modelo memoriza el entrenamiento por completo
+(H-05), que su confianza depende en parte del largo del documento (H-10, +0.66) y que las
+diferencias se juegan en unos pocos documentos de un conjunto de 171. Haría falta más corpus y
+validación cruzada.
+
+---
+
+## Incidencias
+
+**P-01. Dos hipótesis de partida resultaron falsas y se corrigieron con mediciones.**
+(1) Se anticipó que BoW no convergería con el `max_iter` por defecto: converge en 55 iteraciones
+(H-01). (2) Se anticipó que TF-IDF le ganaría a BoW con regresión logística, invirtiendo el
+resultado del Lab #3: **no ocurre**, BoW gana igual (H-06). Ambas quedaron registradas como
+hallazgos en vez de borrarse, porque la segunda llevó al diagnóstico de escala (H-08, H-09) que es
+el hilo conductor de las Secciones 2 y 5.
+
+**P-02. El notebook se ejecuta completo sin errores.** 52 celdas, `Restart & Run All` limpio con el
+`.venv` del repositorio. Conviene repetir la comprobación antes de entregar: el Lab #3 registró una
+incidencia (su P-03) de código que aparecía modificado en disco.
