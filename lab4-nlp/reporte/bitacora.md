@@ -123,3 +123,93 @@ pesos son negativos. Material para la Sección 3.
 **H-04. Ningún peso es exactamente cero.** Con la penalización `l2` por defecto los pesos se
 encogen pero no se anulan: los 76,776 son distintos de cero. Contrastar en la Sección 5 contra
 `penalty="l1"`, que sí produce esparsidad.
+
+---
+
+## Sección 2 — Entrenamiento y evaluación
+
+**H-05. La regresión logística con BoW memoriza el conjunto de entrenamiento por completo.**
+Accuracy de entrenamiento **1.0000**: no se aproxima a los datos, los reproduce sin un solo error.
+Con 10,968 features para 793 documentos hay muchas más dimensiones que ejemplos y las siete
+categorías resultan linealmente separables. Aun así generaliza mejor que nada visto antes en este
+corpus.
+
+| Representación | Conjunto | Accuracy | F1 macro | F1 ponderado |
+|---|---|---|---|---|
+| **BoW** | entrenamiento | **1.0000** | 1.0000 | 1.0000 |
+| **BoW** | **validación** | **0.8647** | **0.8286** | **0.8633** |
+| TF-IDF | entrenamiento | 0.9508 | 0.9043 | 0.9486 |
+| TF-IDF | validación | 0.8000 | 0.7263 | 0.7893 |
+
+Brechas: BoW **13.5 pp**, TF-IDF **15.1 pp**, muy parecidas a las de Naive Bayes en el Lab #3
+(14.1 y 16.3). La brecha mide cuánto se memorizó, no cuánto se fracasa: 0.8647 en validación supera
+al mejor modelo del Lab #3 (0.8353, Naive Bayes con `max_features=1000`).
+
+**H-06. La predicción de que TF-IDF le ganaría a BoW con regresión logística era falsa.**
+La hipótesis de partida era que, al no depender la regresión logística de la magnitud de los
+conteos, TF-IDF invertiría el resultado del Lab #3. **No ocurre: BoW gana igual**, 0.8647 contra
+0.8000. Lo que sí cambia radicalmente es la distancia entre ambas representaciones, que cae de
+**25.3 pp** (Naive Bayes) a **6.5 pp**.
+
+**H-07. Lo que la regresión logística arregla es el colapso de TF-IDF, no su desventaja.**
+En el Lab #3, `MultinomialNB` con TF-IDF se derrumbaba a 0.5471 prediciendo Macroeconomia 109 veces
+de 170 y Reputacion ninguna. Con la misma matriz, la regresión logística sube a 0.8000 (**+25.3 pp**)
+y su reparto de predicciones se normaliza:
+
+| Categoría | Reales | NB TF-IDF (Lab #3) | LR TF-IDF | LR BoW |
+|---|---|---|---|---|
+| Macroeconomia | 48 | **109** | 49 | 47 |
+| Alianzas | 36 | 41 | 47 | 38 |
+| Innovacion | 23 | 14 | 30 | 26 |
+| Regulaciones | 21 | 2 | 16 | 21 |
+| Sostenibilidad | 19 | 3 | 19 | 23 |
+| Otra | 19 | 1 | 8 | 13 |
+| Reputacion | 4 | **0** | 1 | 2 |
+
+La causa es estructural: Naive Bayes **suma** un prior estimado por separado a una evidencia cuya
+magnitud depende de la representación, así que cuando TF-IDF achica la evidencia el prior decide.
+La regresión logística aprende el sesgo `b` y los pesos `w` **conjuntamente**, y el sesgo no puede
+dominar por un accidente de escala.
+
+**H-08. De la desventaja de TF-IDF, dos tercios los causa normalizar y un tercio el IDF.**
+TF-IDF hace dos cosas a la vez. Evaluando la representación intermedia (BoW normalizado a L2 = 1
+pero sin IDF) se separan:
+
+| Representación | acc train | acc val | F1 macro val | iteraciones |
+|---|---|---|---|---|
+| BoW crudo | 1.0000 | **0.8647** | **0.8286** | 55 |
+| BoW normalizado L2 | 0.9395 | 0.8235 | 0.7566 | 35 |
+| TF-IDF (normaliza + IDF) | 0.9508 | 0.8000 | 0.7263 | 33 |
+
+**Normalizar cuesta 4.1 pp y el IDF otros 2.4 pp.** Igual que en el Lab #3, el daño mayor lo hace
+destruir la magnitud de los conteos, aunque aquí por un mecanismo distinto y mucho más leve.
+
+**H-09. El mecanismo es escala frente a regularización, no pérdida de información.**
+En BoW la magnitud de un documento no está acotada: en validación va de 27 a 1,011 conteos,
+**37×** entre el mayor y el menor. En TF-IDF todos valen exactamente 1. Al achicar las features se
+achican los puntajes (|z| máximo medio de **7.77 a 1.89**), pero la penalización `l2` sigue con la
+misma fuerza porque `C = 1.0` en ambos: **TF-IDF no está peor representado, está más regularizado.**
+Comprobado en la Sección 5 — con `C = 1000` TF-IDF alcanza exactamente el 0.8647 de BoW.
+
+**H-10. BoW acierta más pero está sobreconfiado; TF-IDF calibra mucho mejor.**
+
+| | \|z\| máx medio | Confianza media | Docs con confianza > 0.99 | corr(largo, \|z\|) |
+|---|---|---|---|---|
+| BoW | 7.77 | 0.9021 | **77 / 170** | **+0.655** |
+| TF-IDF | 1.89 | 0.5078 | **0 / 170** | +0.079 |
+
+El tamaño de los puntajes de BoW correlaciona con **el largo del documento** (+0.66): un texto largo
+acumula más conteos, `z` crece y la softmax satura, de modo que la "seguridad" del modelo mide en
+parte cuántas palabras tenía la noticia. Relevante para dos cosas: el análisis de errores de la
+Sección 6 (equivocarse con 99 % de certeza es el mismo problema que se le documentó a Naive Bayes)
+y la pregunta de la Sección 7 sobre probabilidades bien calibradas.
+
+**D-06. El conjunto de prueba no se toca en esta sección.**
+El enunciado pide evaluar "sobre validación y, al final, sobre prueba". Quedan decisiones por tomar
+sobre validación —la elección de `C` en la Sección 5—, y medir en prueba antes convertiría ese
+conjunto en un segundo conjunto de validación. La evaluación final se hace **una sola vez**, en la
+Sección 4, junto a la comparación con Naive Bayes. Mismo criterio que el Lab #3, que dejó su
+evaluación en prueba para la Sección 7.
+
+**D-07. Figura de la sección:** `img/confusion_lr_validacion.png`, dos paneles (BoW y TF-IDF) con
+`sns.heatmap`, mismo estilo del Lab #3.
