@@ -213,3 +213,92 @@ evaluación en prueba para la Sección 7.
 
 **D-07. Figura de la sección:** `img/confusion_lr_validacion.png`, dos paneles (BoW y TF-IDF) con
 `sns.heatmap`, mismo estilo del Lab #3.
+
+---
+
+## Sección 3 — Interpretación de pesos
+
+**D-08. Modelo y categorías analizadas.** Se interpretan los pesos del **mejor modelo de la
+Sección 2**, regresión logística con BoW (0.8647 en validación). Categorías: **Macroeconomia** (la
+mejor clasificada) y el par **Alianzas / Regulaciones**, que en el Lab #3 fue el que Naive Bayes más
+confundía (7 errores cruzados de 34), para enlazar con el análisis de errores de la Sección 6.
+
+**H-11. Los pesos negativos son el vocabulario de las otras categorías.**
+En Macroeconomia los positivos son el léxico del tema (`inflación` +0.47, `aumento`, `economía`,
+`precios`, `ipc`, `alza`, `crecimiento`) y los negativos son `personas`, `digital`, `usuarios`,
+`tecnología`, `alianza`, `regulación`: el modelo aprendió también a qué **no** se parece una noticia
+macroeconómica.
+
+**H-12. En el par confundido, cada categoría empuja hacia abajo la palabra insignia de su rival.**
+
+| Término | Peso en Alianzas | Peso en Regulaciones |
+|---|---|---|
+| `alianza` | **+1.01** | −0.29 |
+| `regulación` | −0.36 | **+0.73** |
+| `bbva` | **−0.82** | −0.40 |
+
+El peso de `regulación` en Alianzas no sale de contar apariciones, sino de que bajarlo reduce la
+confusión entre las dos categorías. Es la firma de la optimización conjunta.
+
+**H-13. El solapamiento entre Alianzas y Regulaciones pasa de 7/15 a 0/15.**
+Es el resultado central de la sección. En el Lab #3 se documentó que ambas compartían buena parte de
+su vocabulario más probable, y que por eso el modelo las confundía cuando la noticia no decía
+literalmente "alianza" o "regulación".
+
+| Método | Palabras compartidas en el top-15 |
+|---|---|
+| Naive Bayes, mayor `P(w\|c)` | **7 de 15** — `colombia`, `empresas`, `hace`, `mercado`, `nueva`, `país`, `servicios` |
+| Reg. logística, mayor peso | **0 de 15** |
+
+**H-14. Naive Bayes premia palabras frecuentes; la regresión logística, palabras discriminativas.**
+Cuantificado sobre las 7 × 15 = 105 posiciones del top de cada categoría:
+
+| | Términos distintos | Exclusivos de una sola categoría |
+|---|---|---|
+| Naive Bayes, mayor `P(w\|c)` | 64 | 41 (**64 %**) |
+| Reg. logística, mayor peso | 100 | 97 (**97 %**) |
+
+Naive Bayes repite: `empresas` está en el top-15 de **cinco** categorías; `país`, `nueva` y `bbva`
+en cuatro. Una palabra que caracteriza a cinco categorías no distingue ninguna.
+
+**H-15. La coincidencia entre ambos métodos depende de si la categoría tiene vocabulario propio.**
+
+| Categoría | En común (top-15) |
+|---|---|
+| Macroeconomia | 7 de 15 |
+| Regulaciones | 4 de 15 |
+| Alianzas | 3 de 15 |
+
+Encaja con el Lab #2: Alianzas era la categoría **menos cohesionada** del corpus (razón intra/inter
+1.12×), porque "alianza" es un tipo de evento y no un tema. Donde no hay léxico propio, los dos
+métodos divergen.
+
+**H-16. `bbva` es el ejemplo completo de la diferencia entre contar y optimizar.**
+El corpus son noticias publicadas por BBVA, así que la palabra aparece en **338 de 793 documentos
+(43 %)**.
+
+| Categoría | Peso (reg. logística) | Puesto en `P(w\|c)` (NB) |
+|---|---|---|
+| Innovacion | **+0.631** | **1** de 10,968 |
+| Sostenibilidad | +0.278 | 2 |
+| Otra | +0.196 | 2 |
+| Macroeconomia | +0.266 | 7 |
+| Reputacion | −0.151 | 7,820 |
+| Regulaciones | −0.396 | 3,495 |
+| Alianzas | **−0.824** | 2,531 |
+
+Para Naive Bayes es **la palabra más característica de Innovacion** y la segunda de otras dos:
+información inútil, porque caracteriza a casi todas. La regresión logística le da el peso **más
+negativo de toda la categoría Alianzas**, aprendiendo que *"si menciona a BBVA, probablemente no es
+una alianza"* —las alianzas se anuncian nombrando al socio—. Es una inferencia que `P(wᵢ|c)` no
+puede expresar en ninguna forma, porque todos sus valores son log-probabilidades y una palabra solo
+puede aportar evidencia a favor.
+
+**H-17. Hay pesos altos que son pistas de la fuente, no del tema.**
+`research` (+0.20 en Macroeconomia) viene de "BBVA Research", el servicio de estudios que publica
+los informes de inflación; `podcast` aparece en el top positivo de dos categorías por el formato de
+la publicación. Son regularidades del corpus que no generalizarían a noticias de otro medio, y son
+coherentes con la accuracy de 1.0000 en entrenamiento (H-05).
+
+**D-09. Figura de la sección:** `img/pesos_par_confundido.png`, barras horizontales con los 10 pesos
+más positivos (azul) y los 10 más negativos (rojo) de Alianzas y Regulaciones.
