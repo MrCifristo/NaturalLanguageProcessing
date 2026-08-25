@@ -635,3 +635,29 @@ el hilo conductor de las Secciones 2 y 5.
 **P-02. El notebook se ejecuta completo sin errores.** 52 celdas, `Restart & Run All` limpio con el
 `.venv` del repositorio. Conviene repetir la comprobación antes de entregar: el Lab #3 registró una
 incidencia (su P-03) de código que aparecía modificado en disco.
+
+---
+
+## Reporte
+
+**D-19. El reporte pasó de 6 páginas a 4 recortando texto, no contenido.**
+La primera versión ocupaba **6 páginas** con 3,626 palabras. Se comprimió a **2,926** sin quitar una
+sola cifra ni conclusión: se fusionaron párrafos, se eliminaron incisos y se quitaron las referencias
+cruzadas redundantes entre secciones (la Sección 7 repetía buena parte de las anteriores). Mismo
+criterio que el Lab #3 (su D-15).
+
+**D-20. El último tramo se resolvió con `line-height`, no con más recortes.**
+A partir de las ~2,950 palabras los recortes dejaron de rendir: quitar 20 o 30 palabras no movía el
+paginado, porque el texto se re-fluye y reabsorbe el hueco. La última página quedaba con 5 líneas de
+79. Reducir `line-height` de **1.36 a 1.30** en el CSS de `build_reporte.py` da ~4 % más líneas por
+página y cierra el documento en 4 páginas. Es el único punto en que el CSS se aparta del Lab #3.
+
+**D-21. Figuras incluidas:** `img/pesos_par_confundido.png` (54 % de ancho) y
+`img/regularizacion.png` (66 %). Se dejó fuera `img/confusion_lr_validacion.png`, cuyo contenido
+queda cubierto por las tablas del propio reporte — mismo criterio que el Lab #3.
+
+**H-39. Medir el paginado es más útil que contar palabras.**
+Para saber cuánto recortar se contaron las líneas por página renderizando con
+`HTML(...).render()` y recorriendo las cajas `LineBox` y `TableRowBox`. Eso reveló que la página 5
+tenía solo 13 líneas y que la 3 desperdiciaba 14 por un párrafo que no cabía entero — información
+imposible de deducir del conteo de palabras.

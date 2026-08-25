@@ -34,7 +34,7 @@ CSS = """
 body {
     font-family: 'Georgia', 'Times New Roman', serif;
     font-size: 9.1pt;
-    line-height: 1.36;
+    line-height: 1.30;
     color: #22262a;
     text-align: left;
 }

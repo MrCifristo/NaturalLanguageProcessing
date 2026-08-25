@@ -9,8 +9,9 @@ Repositorio de los laboratorios del curso de **Natural Language Processing**.
 | #1 | Preparación de un corpus y EDA | [`lab1-nlp/`](lab1-nlp/) |
 | #2 | Representaciones básicas de texto (BoW, n-gramas, TF-IDF, similitud coseno) | [`lab2-nlp/`](lab2-nlp/) |
 | #3 | Clasificación de texto con Naive Bayes | [`lab3-nlp/`](lab3-nlp/) |
+| #4 | Modelos lineales: regresión logística | [`lab4-nlp/`](lab4-nlp/) |
 
-Los tres laboratorios trabajan sobre el mismo corpus: **Spanish News Classification**
+Los cuatro laboratorios trabajan sobre el mismo corpus: **Spanish News Classification**
 (`df_total.csv`, noticias reales en español clasificadas en 7 categorías).
 
 ## Estructura
@@ -22,7 +23,8 @@ NaturalLanguageProcessing/
 ├── README.md
 ├── lab1-nlp/           # Laboratorio #1
 ├── lab2-nlp/           # Laboratorio #2
-└── lab3-nlp/           # Laboratorio #3
+├── lab3-nlp/           # Laboratorio #3
+└── lab4-nlp/           # Laboratorio #4
 ```
 
 El entorno y las dependencias son **compartidos**: viven en la raíz, no dentro de cada
