@@ -17,6 +17,9 @@ scikit-learn==1.7.2
 # --- Clasificación (Lab 3: Naive Bayes, matrices de confusión) ---
 seaborn==0.13.2
 
+# --- Estadística (Lab 4: test de McNemar con scipy.stats.binomtest) ---
+scipy==1.18.0
+
 # --- Jupyter ---
 jupyter==1.1.1
 notebook==7.6.1

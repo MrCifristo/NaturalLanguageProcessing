@@ -302,3 +302,76 @@ coherentes con la accuracy de 1.0000 en entrenamiento (H-05).
 
 **D-09. Figura de la sección:** `img/pesos_par_confundido.png`, barras horizontales con los 10 pesos
 más positivos (azul) y los 10 más negativos (rojo) de Alianzas y Regulaciones.
+
+---
+
+## Sección 4 — Comparación con Naive Bayes
+
+**D-10. El conjunto de prueba se mide aquí, una sola vez, con las cuatro combinaciones.**
+Los cuatro modelos usan la configuración por defecto de scikit-learn, las mismas particiones y los
+mismos vectorizadores, así que la comparación aísla el algoritmo y la representación. La Sección 5
+(regularización) se queda enteramente en validación, precisamente para no volver a tocar prueba y
+convertirla en un segundo conjunto de validación.
+
+**D-11. Los tiempos se miden aquí, no se copian del Lab #3.**
+Mediana de **siete repeticiones** con `time.perf_counter()`, para que las cuatro cifras salgan de la
+misma máquina y la misma ejecución. Una medición aislada de unos pocos milisegundos es demasiado
+ruidosa; aun así los valores fluctúan entre corridas y en el reporte se citan como aproximados.
+
+**H-18. Resultado final sobre prueba (171 documentos).**
+
+| Modelo | Representación | Accuracy | F1 macro | F1 ponderado | Entrenamiento |
+|---|---|---|---|---|---|
+| **Reg. logística** | **BoW** | **0.8713** | **0.8631** | **0.8703** | ≈ 238 ms |
+| Reg. logística | TF-IDF | 0.8421 | 0.7699 | 0.8349 | ≈ 138 ms |
+| Naive Bayes | BoW | 0.8246 | 0.7599 | 0.8199 | **≈ 1.7 ms** |
+| Naive Bayes | TF-IDF | 0.5731 | 0.3939 | 0.5052 | ≈ 1.5 ms |
+
+Es el **mejor resultado de los cuatro laboratorios** sobre este corpus: 0.8713 supera al 0.8596 del
+Naive Bayes con `max_features=1000` que ganó el Lab #3. Los dos Naive Bayes reproducen exactamente
+sus cifras de prueba del Lab #3 (0.8246 y 0.5731), tercera confirmación de reproducibilidad.
+
+**H-19. Frente a Naive Bayes con BoW la ventaja es marginal; con TF-IDF es abrumadora.**
+Con 171 documentos, **un documento vale 0.58 puntos de accuracy**, así que las diferencias se
+contrastan con un test de McNemar sobre los documentos donde los modelos discrepan:
+
+| Comparación | Acierta solo A | Acierta solo B | p-valor |
+|---|---|---|---|
+| Reg. logística BoW vs Naive Bayes BoW | 15 | 7 | **0.13** |
+| Reg. logística TF-IDF vs Naive Bayes TF-IDF | 49 | 3 | **1.0 × 10⁻¹¹** |
+| Reg. logística BoW vs Reg. logística TF-IDF | 11 | 6 | 0.33 |
+
+Los 4.7 puntos de ventaja con BoW son **ocho documentos netos** y un reparto de 15 contra 7, que no
+se distingue del azar. **No hay evidencia de que un algoritmo acierte más que el otro con BoW sobre
+este corpus.** Con TF-IDF sí: 49 contra 3.
+
+**H-20. La ganancia real está en las categorías pequeñas, y la accuracy no la ve.**
+La accuracy sube 4.7 pp pero el F1 macro sube **10.3** (0.7599 → 0.8631). El desglose por categoría
+(ambos con BoW, sobre prueba) explica la distancia:
+
+| Categoría | Docs entrenamiento | F1 Naive Bayes | F1 Reg. logística | Δ |
+|---|---|---|---|---|
+| Reputacion | 18 | 0.400 | 0.857 | **+0.457** |
+| Otra | 89 | 0.743 | 0.850 | +0.107 |
+| Innovacion | 106 | 0.780 | 0.875 | +0.095 |
+| Alianzas | 171 | 0.824 | 0.907 | +0.083 |
+| Regulaciones | 99 | 0.789 | 0.811 | +0.021 |
+| Macroeconomia | 223 | 0.889 | 0.878 | −0.011 |
+| Sostenibilidad | 87 | 0.895 | 0.865 | −0.030 |
+
+En las dos categorías mejor representadas la regresión logística incluso pierde un poco. Es el
+mismo patrón que el Lab #3 obtuvo recortando el vocabulario a 1,000 términos (Reputacion
+0.40 → 0.89), llegado por otro camino: allí se **quitaban** las palabras raras que hacían ruido con
+pocos datos; aquí la optimización conjunta les **resta peso**. Dos formas de controlar la misma
+patología.
+
+**H-21. El precio de optimizar en vez de contar: unas 140×.**
+`MultinomialNB` no itera —agrupar, sumar, tomar logaritmos— y entrena en ≈ 1.7 ms. La regresión
+logística ajusta 76,776 pesos con `lbfgs` y tarda ≈ 238 ms con la misma representación (159× entre
+el más lento y el más rápido de los cuatro). Sigue siendo un costo trivial en absoluto —vectorizar
+el corpus tarda más que entrenar cualquiera de los cuatro modelos— pero crece con el tamaño del
+corpus.
+
+**D-12. `scipy` pasa a ser dependencia directa.**
+`binomtest` (test de McNemar) viene de `scipy.stats`. Ya estaba instalado como dependencia de
+scikit-learn, pero ahora se importa de forma explícita, así que se declara en `requirements.txt`.
