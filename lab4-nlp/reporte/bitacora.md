@@ -461,3 +461,95 @@ al del Lab #3 con brecha de 5.3 pp (0.8353).
 **D-15. Figura de la sección:** `img/regularizacion.png`, dos paneles con eje `C` logarítmico
 (accuracy de entrenamiento en gris, accuracy y F1 macro de validación en azules, línea roja
 discontinua en el mejor F1 macro), mismo estilo que `max_features.png` del Lab #3.
+
+---
+
+## Sección 6 — Análisis de errores
+
+**D-16. El análisis se hace sobre validación, con el modelo BoW por defecto.**
+Es el conjunto donde el Lab #3 hizo su propio análisis de errores; usar el mismo permite responder
+si los documentos fallados son los mismos.
+
+**H-29. 23 errores frente a 34, y el par dominante del Lab #3 deja de dominar.**
+
+| Par | Naive Bayes (Lab #3) | Reg. logística |
+|---|---|---|
+| **Alianzas ↔ Regulaciones** | **7** | **3** |
+| Innovacion ↔ Otra | 4 | 2 |
+| Innovacion ↔ Macroeconomia | 4 | 3 |
+| Macroeconomia ↔ Sostenibilidad | 2 | 3 |
+
+Alianzas ↔ Regulaciones cae de 7 a 3 y queda empatado con otros dos pares, sin ninguno destacado.
+Es lo que anticipaba H-13: el solapamiento del vocabulario característico de esas dos categorías
+pasó de 7/15 a 0/15. Con 23 errores repartidos en 21 pares posibles **no se puede declarar un par
+dominante**; misma advertencia que el Lab #3 (su H-23).
+
+**H-30. Los errores de la regresión logística son casi un subconjunto de los de Naive Bayes.**
+
+| | Documentos |
+|---|---|
+| Fallan los dos modelos | **19** (83 % de los errores de la reg. logística) |
+| Corrige la reg. logística | 15 |
+| Errores nuevos | **4** |
+
+No son documentos distintos ni un tipo de confusión distinto: **son los mismos documentos difíciles**
+y sobre ellos la regresión logística acierta más veces. Explica por qué la ventaja sobre Naive Bayes
+con BoW no alcanza significancia (H-19, p = 0.13): la mayor parte de los errores es común.
+
+**H-31. Los cinco documentos que el Lab #3 diseccionó, uno a uno.**
+
+| Doc | Real | Naive Bayes | Reg. logística | |
+|---|---|---|---|---|
+| 667 | Alianzas | Regulaciones | **Alianzas** | corregido |
+| 589 | Alianzas | Regulaciones | **Alianzas** | corregido |
+| 296 | Alianzas | Regulaciones | **Alianzas** | corregido |
+| 72 | Alianzas | Regulaciones | Regulaciones | sigue fallando |
+| 756 | Regulaciones | Alianzas | Alianzas | sigue fallando |
+
+Los dos que siguen fallando son los que el Lab #3 clasificó como **etiqueta discutible** o **gana la
+palabra literal** (el 756 es un convenio MinCiencias–CRC etiquetado Regulaciones que dice "alianza"
+y "convenio"; su término más culpable es precisamente `alianza`, +1.30). Ningún modelo lineal sobre
+bolsa de palabras resuelve eso.
+
+**H-32. La independencia condicional, medida sobre el documento 667.**
+Noticia del aniversario de Uber Taxi, *"nació de la alianza entre Uber y TaxExpress"*, etiquetada
+Alianzas. Aporte a la diferencia de puntaje (Regulaciones − Alianzas); positivo = empuja al error:
+
+| Término | Apariciones | Naive Bayes | Reg. logística |
+|---|---|---|---|
+| uber | 7 | **+28.60** | +2.75 |
+| taxi | 3 | +2.73 | **−0.03** |
+| taxistas | 2 | +4.59 | +0.11 |
+| tarifas | 1 | +1.24 | +0.04 |
+| **alianza** | **1** | −3.93 | **−1.30** |
+| **saldo total (con sesgo)** | | **+12.11 → Regulaciones** | **−0.87 → Alianzas** |
+
+`uber`, `taxi`, `taxistas` y `tarifas` **no son cuatro evidencias independientes: son la misma señal
+dicha de cuatro maneras.** Naive Bayes las suma como si lo fueran —es literalmente su supuesto— y
+acumula **+37.16**; `alianza`, la palabra que decide el caso, aporta apenas el **11 %** de eso en
+contra, y la decisión queda inapelable (confianza 1.0000).
+
+La regresión logística no puede pagar cuatro veces por la misma información: si `uber` ya empuja
+hacia Regulaciones, dar peso a `taxi` no reduce el error, así que `taxi` termina con aporte
+**negativo** (−0.03). El grupo suma **+2.87** y `alianza` aporta **1.30 en contra: el 45 %**, más de
+**cuatro veces** el peso relativo que tenía en Naive Bayes. El saldo se invierte y el documento se
+clasifica bien.
+
+**H-33. Naive Bayes se equivoca con certeza; la regresión logística duda.**
+
+| | Reg. logística | Naive Bayes |
+|---|---|---|
+| Confianza media al acertar | 0.9208 | 0.9932 |
+| Confianza media al fallar | **0.7827** | **0.9875** |
+| Errores con confianza > 0.99 | **1 de 23** | **32 de 34** |
+
+Acumular evidencia correlacionada como si fuera independiente infla el puntaje ganador sin límite,
+así que Naive Bayes **no duda nunca**. Consecuencia práctica: con la regresión logística se puede
+fijar un umbral de confianza y derivar los casos dudosos a revisión manual; con Naive Bayes casi
+todos los errores pasarían el umbral. Matiz: es mejor, no bien calibrada — en términos absolutos
+BoW sigue sobreconfiado (H-10: 77 de 170 por encima de 0.99), y el modelo TF-IDF lo estaría más a
+costa de 6.5 puntos de accuracy.
+
+**H-34. Los errores nuevos son de baja confianza, salvo uno.**
+doc 248 (0.528), doc 360 (0.697), doc 466 (0.743) y doc 1110 (0.998). Tres de los cuatro son casos
+donde el modelo prácticamente no se decide.
