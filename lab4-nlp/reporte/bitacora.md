@@ -375,3 +375,89 @@ corpus.
 **D-12. `scipy` pasa a ser dependencia directa.**
 `binomtest` (test de McNemar) viene de `scipy.stats`. Ya estaba instalado como dependencia de
 scikit-learn, pero ahora se importa de forma explícita, así que se declara en `requirements.txt`.
+
+---
+
+## Sección 5 — Efecto de la regularización
+
+**D-13. Toda la sección se mide sobre validación.** El conjunto de prueba se usó en la Sección 4 y
+no se vuelve a tocar (D-10): elegir aquí un valor de `C` mirando prueba la convertiría en un segundo
+conjunto de validación.
+
+**H-22. Las dos representaciones responden a `C` de forma opuesta.**
+
+| C | BoW acc val | BoW F1 macro | TF-IDF acc val | TF-IDF F1 macro |
+|---|---|---|---|---|
+| 0.001 | 0.7176 | 0.5953 | **0.2824** | **0.0629** |
+| 0.01 | 0.8471 | 0.8137 | 0.2824 | 0.0629 |
+| 0.1 | 0.8647 | 0.8286 | 0.4882 | 0.2209 |
+| 1 (defecto) | 0.8647 | 0.8286 | 0.8000 | 0.7263 |
+| 10 | 0.8647 | 0.8286 | 0.8412 | 0.8104 |
+| **100** | **0.8765** | **0.8392** | 0.8529 | 0.8180 |
+| 1000 | 0.8765 | 0.8392 | **0.8647** | 0.8306 |
+
+**BoW: curva plana.** Entre `C = 0.1` y `C = 1000` la accuracy se mueve entre 0.8647 y 0.8765 —poco
+más de un punto, **dos documentos de 170**—. El óptimo aparente (`C = 100`) está dentro del ruido y
+no justifica cambiar el valor por defecto. **TF-IDF: una rampa monótona** de 0.2824 a 0.8647 que no
+dobla hacia abajo ni con `C = 1000`: en todo el rango explorado necesita *más* capacidad, no menos.
+
+**H-23. Confirmada la hipótesis abierta en la Sección 2: la desventaja de TF-IDF era de escala.**
+
+> **BoW con `C = 1` da 0.8647. TF-IDF con `C = 1000` da 0.8647.** El mismo número exacto.
+
+El precio se lee en la norma de los pesos: TF-IDF necesita `‖w‖ = 134.4` frente a `‖w‖ = 5.8` de
+BoW, **23× más grandes**, justo lo que compensa que sus entradas sean ~37× más pequeñas. TF-IDF no
+estaba peor representado: estaba más regularizado por comparar dos escalas distintas bajo una misma
+penalización.
+
+**H-24. El colapso de TF-IDF con `C` pequeño repite el error de Naive Bayes del Lab #3.**
+Con `C ≤ 0.01`: accuracy **0.2824**, F1 macro **0.0629**, `‖w‖ = 0.07`. Ese 0.2824 es prácticamente
+la línea base de clase mayoritaria (Macroeconomia, 28.1 % del corpus). Con los pesos aplastados,
+`w·x` se vuelve despreciable frente al sesgo `b` y **el sesgo decide**, exactamente el papel que
+jugaba el prior cuando `MultinomialNB` con TF-IDF predecía Macroeconomia 109 veces de 170. Dos
+modelos distintos, dos causas distintas, el mismo síntoma: cuando la evidencia del texto se apaga,
+gana la clase mayoritaria.
+
+**D-14. Para `l1` se usa el solver `saga`, no `liblinear`.**
+`liblinear` también soporta `l1` pero resuelve multiclase como **one-vs-rest**, con lo cual dejaría
+de ser el mismo modelo multinomial que se analiza en todo el laboratorio (D-05). `saga` mantiene
+multinomial y converge (`n_iter_` entre 838 y 2,663 con `max_iter=3000`), a costa de 3–25 s por
+ajuste frente a décimas de segundo de `lbfgs`.
+
+**H-25. Con `l1` se puede tirar el 99.8 % de los pesos sin perder F1 macro.**
+
+| penalty | C | acc val | F1 macro val | Pesos activos | % del total | Términos usados |
+|---|---|---|---|---|---|---|
+| l2 | 1 | 0.8647 | 0.8286 | 76,776 | 100 % | 10,968 |
+| l2 | 100 | 0.8765 | 0.8392 | 76,776 | 100 % | 10,968 |
+| **l1** | **0.1** | 0.8235 | **0.8343** | **185** | **0.2 %** | **136** |
+| l1 | 0.5 | 0.8412 | 0.8053 | 507 | 0.7 % | 330 |
+| l1 | 1 | 0.8529 | 0.8169 | 747 | 1.0 % | 456 |
+| l1 | 5 | 0.8353 | 0.7997 | 2,660 | 3.5 % | 1,342 |
+
+Con `C = 0.1` el modelo usa **185 pesos repartidos en 136 términos** y obtiene F1 macro **0.8343**,
+por encima del 0.8286 del `l2` completo. La accuracy sí baja ~4 puntos: la métrica que resiste es la
+que trata a todas las categorías por igual.
+
+**H-26. Reputacion se resuelve con 8 términos.**
+La categoría con 18 documentos de entrenamiento, la peor clasificada por Naive Bayes (F1 0.400), se
+decide con `reputación` (+1.01), `bbva` (−0.44), `bitcoin`, `criptomonedas`, `empresas`, `grupo`,
+`sector` y `tecnología`. Con menos datos, menos parámetros — justo lo que le faltaba a Naive Bayes,
+que estimaba 10,968 probabilidades para esa categoría a partir de 18 documentos.
+
+**H-27. `l1` con `C = 1` selecciona 456 términos: el mismo orden de magnitud que el
+`max_features=1000` que ganó el Lab #3.** Misma idea de fondo —controlar la capacidad— por dos
+caminos: allí se recortaba **por frecuencia y a priori**, aquí la selección la **aprende el modelo**,
+quedándose con los términos que separan las categorías y no con los más frecuentes.
+
+**H-28. En BoW, regularizar NO cierra la brecha entrenamiento–validación.**
+La accuracy de entrenamiento se queda en 1.0000 para todo `C ≥ 0.03` y la brecha oscila entre 12.3 y
+14.7 puntos sin bajar; solo se reduce con `C = 0.001` (10.3 pp) y ahí el modelo ya está roto (0.7176).
+Contrasta con el Lab #3, donde `max_features=1000` la bajó de 14.1 a 5.3 pp. La lección es que **la
+brecha no es el objetivo**: `C` controla la capacidad sin quitar features, así que el modelo puede
+seguir memorizando aunque sus pesos sean pequeños. El modelo con brecha de 13.5 pp (0.8647) le gana
+al del Lab #3 con brecha de 5.3 pp (0.8353).
+
+**D-15. Figura de la sección:** `img/regularizacion.png`, dos paneles con eje `C` logarítmico
+(accuracy de entrenamiento en gris, accuracy y F1 macro de validación en azules, línea roja
+discontinua en el mejor F1 macro), mismo estilo que `max_features.png` del Lab #3.
