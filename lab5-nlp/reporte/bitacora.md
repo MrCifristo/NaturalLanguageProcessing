@@ -467,7 +467,66 @@ perplejidades, uno y medio.
 
 ## Sección 5 — Autocompletado
 
-<!-- Función top-5, cinco fragmentos de prueba, comentario sobre el español del s. XVII. -->
+**D-22. El top-5 se calcula sobre las continuaciones observadas, no sobre todo el vocabulario.**
+Con add-k el denominador es constante para un contexto fijo, así que ordenar por probabilidad
+es ordenar por cuenta: las 20,496 palabras no vistas empatan todas en el mismo valor y su orden
+sería arbitrario. Se construye un índice `contexto -> [(palabra, cuenta)]` una sola vez.
+
+Efecto secundario útil: cuando un contexto tiene menos de cinco continuaciones, la función
+devuelve menos de cinco en vez de rellenar con empates sin sentido, y eso hace visible el
+problema (H-29).
+
+**H-28. La palabra real aparece en el top-5 en 3 de 6 fragmentos de prueba.**
+
+| Fragmento | Real | Top-5 |
+|---|---|---|
+| `pues , con todo` | `eso` | lo, el, esto, **eso**, `,` |
+| `- virtud es -` | `respondió` | `,`, dijo, **respondió**, no, ¡ |
+| `así que , somos ministros` | `de` | **de**, `,`, infernales |
+| `luego subió don quijote` | `sobre` | `-`, `,`, de, `.`, y |
+| `y , en` | `diciendo` | el, la, su, las, los |
+| `de allí a` | `poco` | la, su, los, lo, don |
+
+Los fallos no son sugerencias absurdas sino el techo de un contexto de una palabra: tras `en`
+el modelo propone artículos, que es lo correcto casi siempre, pero aquí venía un gerundio.
+
+**H-29. Con `en un lugar de la` el modelo solo ve `la`.** Sugiere `cabeza, duquesa, mano,
+mancha, cual`: acierta en cuarto lugar y por casualidad. La frase más conocida del español no
+le aporta nada porque el bigrama no la puede ver. Y para `ministros` solo hay **3**
+continuaciones en todo el entrenamiento, así que no puede ofrecer cinco.
+
+**H-30. El estilo del siglo XVII se cuela en las sugerencias.** La continuación más probable
+de `quijote` es la **raya de diálogo** con 0.251, porque el libro es casi todo conversación.
+Aparecen `vuesa merced`, `dél`, `desta`, `socarrón`, `malambruno` y fórmulas completas de
+atribución. También pesa la puntuación (D-14): coma y raya entran al top-5 en varios
+fragmentos; para un autocompletado de producción habría que filtrarlas.
+
+**D-23. La generación muestrea de las continuaciones observadas, sin suavizar.** Con k>0 el
+muestreo tomaría del vocabulario entero y el ruido dominaría: con un contexto raro como
+`vuesa` (174 apariciones) el suavizado con k=1 pone el 99.1 % de la masa en palabras no vistas
+(H-20). Se usa `random.Random(semilla)` para que las oraciones sean reproducibles.
+
+**H-31. La calidad del texto generado sube con n, al revés que la perplejidad.**
+
+- **Unigrama:** `, pelo venir no el o discurso de y perdone más otras` — palabras sueltas.
+- **Bigrama:** `- señor de los cielos , ni zarzo .` — tramos legibles que se pierden.
+- **Trigrama:** `- par dios que así acomete mi señor , nos deshizo este pensamiento` — pasa
+  por Cervantes.
+
+**H-32. La explicación medida: el trigrama recita el corpus.**
+Secuencia literal más larga compartida con entrenamiento, sobre tres muestras por modelo:
+
+| Modelo | Rachas | La más larga |
+|---|---|---|
+| Unigrama | 3, 3, 3 | `tan . y` |
+| Bigrama | 4, 4, 5 | `- dijo sancho panza .` |
+| Trigrama | 5, 7, 7 | `vuestra merced tan duro de celebro ,` |
+
+Al generar, el modelo solo elige entre continuaciones que sí vio, así que la dispersión no le
+estorba y el contexto largo se aprovecha entero. Al evaluar texto nuevo, esa misma dispersión
+lo hunde (H-26). Es la resolución de la aparente contradicción entre las secciones 4 y 5, y el
+material para la pregunta 2 del análisis: que un texto suene bien no dice que el modelo
+generalice.
 
 ---
 
