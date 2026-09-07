@@ -341,13 +341,127 @@ solución que en el Lab #3 (su H-18).
 
 ## Sección 3 — Suavizado
 
-<!-- Laplace, add-k con al menos dos valores de k, comparación con/sin suavizado. -->
+**D-18. Valores de k: 1 (Laplace), 0.1, 0.01 y 0.001.** El enunciado pide "al menos dos";
+se usan cuatro porque con dos no se ve que la relación no es monótona (H-19). No hizo falta
+código nuevo: la clase de la sección 2 ya recibe `k` (D-16).
+
+**H-18. Sobre una oración sin ceros, suavizar solo cuesta.** La oración de la celda 2.4 tiene
+todos sus bigramas en entrenamiento y aun así Laplace le quita 29 nats.
+
+| k | Oración sin ceros | Oración con un bigrama de cuenta 0 |
+|---|---|---|
+| 0 (sin) | −38.270 | **−inf** |
+| 1 (Laplace) | −67.291 | −75.672 |
+| 0.1 | −48.376 | −66.250 |
+| 0.01 | −40.345 | **−62.945** |
+| 0.001 | −38.528 | −65.049 |
+
+La segunda oración es `- y ¡ cómo si queda lo amargo !`, cuyo bigrama `si queda` no aparece
+nunca en entrenamiento.
+
+**H-19. El efecto de k no es monótono: hay un óptimo intermedio.**
+Barrido sobre la oración con un cero: k=1 → −75.672, k=0.1 → −66.250, k=0.05 → −64.552,
+**k=0.01 → −62.945**, k=0.005 → −63.137, k=0.001 → −65.049, k=0.0005 → −66.335. Un k grande
+castiga los doce bigramas que sí estaban; uno muy pequeño deja al único ausente con una
+probabilidad tan diminuta que hunde la suma. La curva es en U con mínimo cerca de 0.01.
+
+**H-20. Laplace es brutal con este vocabulario: se lleva el 90 % de la masa de un contexto
+frecuente.** Con |V| = 20,496 el término k·|V| del denominador aplasta al numerador.
+
+| k | P(quijote \| don) | P(no visto \| don) |
+|---|---|---|
+| 0 (sin) | 0.82020 | 0 |
+| 1 | **0.07525** | 4.43 × 10⁻⁵ |
+| 0.1 | 0.41206 | 2.43 × 10⁻⁵ |
+| 0.01 | 0.74628 | 4.40 × 10⁻⁶ |
+| 0.001 | 0.81216 | 4.79 × 10⁻⁷ |
+
+Cuanto más raro el contexto, peor el despojo:
+
+| Contexto | c(ctx) | Continuaciones vistas | Masa a no vistos (k=1) |
+|---|---|---|---|
+| `vuesa` | 174 | 6 | **99.1 %** |
+| `respondió` | 857 | 60 | 95.7 % |
+| `don` | 2,069 | 53 | 90.6 % |
+| `que` | 16,430 | 1,961 | 50.2 % |
+| `,` | 32,070 | 3,519 | 32.3 % |
+
+**H-21. La distribución sigue normalizada.** Comprobado sumando P(·|don) sobre las 20,496
+palabras del vocabulario: da exactamente 1.0000000000 con k=1 y con k=0.01. El suavizado
+redistribuye masa, no la inventa, que es justo el argumento de la sobreconfianza.
+
+**H-22. Suavizado ligero, el trigrama supera al bigrama sin suavizar.**
+La oración de la sección 2 bajo el trigrama: k=1 → −87.193, k=0.1 → −65.146, k=0.01 → −47.410,
+**k=0.001 → −37.731**, contra −38.270 del bigrama con máxima verosimilitud. El contexto de dos
+palabras sí servía; lo único que le faltaba era no declarar imposible lo no visto. Es la
+primera señal de que el trigrama puede competir, y la sección 4 lo verifica con perplejidad
+sobre el conjunto completo.
 
 ---
 
 ## Sección 4 — Perplejidad
 
-<!-- PPL de los tres modelos en validación, mejor modelo en prueba, barrido de k. -->
+**D-19. Vocabulario cerrado: las palabras fuera de vocabulario no se mapean a `<UNK>`.**
+Una palabra OOV de validación cae en el mismo caso que cualquier continuación no vista y
+recibe k/(c(ctx)+k·|V|), que con k>0 nunca es cero, así que la perplejidad es finita sin
+necesidad de `<UNK>`. El enunciado no lo pide y añadirlo obligaría a reentrenar con un
+vocabulario recortado.
+
+Costo asumido: al repartir masa sobre palabras que están fuera de |V|, el modelo asigna algo
+más de probabilidad total de la que le corresponde, así que la perplejidad absoluta queda
+ligeramente optimista. No afecta a la comparación, que es lo que pide la sección: los tres
+modelos comparten vocabulario, particiones y tratamiento de OOV.
+
+**H-23. Los tres modelos predicen exactamente 44,723 tokens de validación.**
+Consecuencia directa de D-17 y condición para que las tres perplejidades sean comparables.
+Verificado en la celda 4.1.
+
+**H-24. Perplejidad en validación con los k de la sección 3.**
+
+| k | Unigrama | Bigrama | Trigrama |
+|---|---|---|---|
+| 1 (Laplace) | 529.1 | 1,635.3 | 8,210.4 |
+| 0.1 | 552.7 | 627.1 | 3,891.2 |
+| 0.01 | 588.3 | 395.0 | 2,105.6 |
+| 0.001 | 627.1 | 390.0 | 1,652.1 |
+
+**H-25. Cada modelo tiene su propio óptimo de k, y se corre a la izquierda al subir n.**
+Barrido sobre 11 valores entre 2 y 0.0001. Las tres curvas son en U (figura
+`img/perplejidad.png`).
+
+| Modelo | Mejor k | PPL validación |
+|---|---|---|
+| Unigrama | 1 | 529.06 |
+| **Bigrama** | **0.003** | **373.83** |
+| Trigrama | 0.001 | 1,652.06 |
+
+Cuantos más ceros tiene la tabla de conteos, más caro sale repartir masa a ciegas, así que el
+óptimo baja: 1 → 0.003 → 0.001.
+
+**H-26. Gana el bigrama, y el trigrama queda peor que no usar contexto.**
+El trigrama con su mejor k (1,652) es más de tres veces peor que el unigrama (529). No es un
+problema del suavizado sino de H-12: con el 60.2 % de sus trigramas ausentes de entrenamiento,
+la mayor parte del tiempo no está usando contexto sino repartiendo la masa que le dejó el
+suavizado. El compromiso contexto/dispersión queda confirmado con el punto dulce en **n = 2**.
+
+**D-20. El conjunto de prueba se toca aquí por primera y única vez.** El modelo y su k se
+eligieron solo con validación, mismo criterio que en los labs #3 (D-10) y #4 (D-10).
+
+**H-27. Resultado final: bigrama con k = 0.003, perplejidad 397.00 sobre prueba.**
+
+| Modelo | k | Validación | Prueba |
+|---|---|---|---|
+| Unigrama | 1 | 529.1 | 550.6 |
+| **Bigrama** | **0.003** | **373.8** | **397.0** |
+| Trigrama | 0.001 | 1,652.1 | 1,695.0 |
+
+La diferencia de 23 puntos entre validación y prueba en el modelo ganador es la parte del
+ajuste de k que no generaliza. El orden entre los tres modelos se mantiene en prueba.
+
+**D-21. Figura de la sección:** `img/perplejidad.png`, perplejidad de validación frente a k
+con ambos ejes en escala logarítmica y el óptimo de cada curva marcado con un círculo hueco.
+Escala log en las dos porque el barrido de k cubre cuatro órdenes de magnitud y las
+perplejidades, uno y medio.
 
 ---
 
