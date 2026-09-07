@@ -139,22 +139,203 @@ Comprobado: tras leer con `utf-8-sig`, `texto_crudo.startswith("\ufeff")` es `Fa
 queda ningún `\r` porque Python normaliza los saltos de línea al leer en modo texto. El
 archivo son 2,117,497 caracteres en 37,861 líneas.
 
-**D-10. Pendiente:** decidir si se conservan o se eliminan los encabezados de capítulo y los
-preliminares. Argumento para quitarlos: no son la lengua que el modelo dice modelar (prosa
-narrativa y diálogo), y la fórmula repetida de los encabezados introduce n-gramas
-artificialmente frecuentes. Argumento para dejarlos: son ~126 líneas frente a ~384,000
-palabras, un efecto despreciable, y quitarlos añade un paso de limpieza más que puede fallar.
-Se resolverá al implementar la sección y se documentará el criterio aquí.
+**D-11. Recorte fino por anclas del propio libro (celda 0.7).** Como los marcadores de
+Gutenberg no bastan (H-05), el cuerpo se delimita entre la portadilla `El ingenioso hidalgo
+don Quijote de la Mancha` y la línea que contiene solo `Fin`. Para el cierre se usa `rindex`
+sobre `"\nFin\n"` —la línea exacta, buscada desde el final— porque un `index` sobre `"Fin"`
+atraparía cualquiera de las decenas de `Finalmente` o el `Finis` que cierra el libro de 1605.
+Resultado: **2,097,945 caracteres y cero líneas con "Gutenberg"**.
 
 ### Pipeline y particiones
 
-<!-- Tokenización, <s>/</s>, split 80/10/10, tamaño de vocabulario, tasa de OOV en prueba. -->
+**H-07. Los encabezados de capítulo no producen una oración mala: producen dos.**
+Verificado ejecutando Punkt sobre el primer encabezado:
+
+```
+Capítulo primero. Que trata de la condición y ejercicio del famoso hidalgo
+don Quijote de la Mancha
+        ↓ sent_tokenize(..., language="spanish")
+   · "Capítulo primero."
+   · "Que trata de la condición y ejercicio del famoso hidalgo don Quijote de la Mancha"
+```
+
+La primera es una "oración" de dos palabras; la segunda, un fragmento sin verbo principal.
+Cada una recibiría sus propios `<s>` y `</s>`, de modo que el daño no cae en cualquier
+conteo sino justo en las transiciones de inicio y de fin de oración, que son las que un
+modelo n-grama usa para decidir cómo empieza y cómo termina una frase.
+
+**D-10 (resuelta). Se eliminan los encabezados estructurales; se conservan los preliminares.**
+Se descartan los 126 encabezados de capítulo y las 5 divisiones de parte (`Primera/Segunda/
+Tercera/Cuarta parte del ingenioso...`): **131 párrafos de 5,191**, detectados por expresión
+regular sobre el inicio del párrafo ya reconstruido. El criterio decisivo no fue el volumen
+—era despreciable, como decía el argumento en contra— sino H-07: no son texto mal
+proporcionado, son texto mal formado.
+
+Los preliminares (TASA, testimonio de erratas, privilegio real, dedicatoria, prólogo y versos)
+**se conservan**: son español de la época con oraciones bien formadas, y delimitarlos exigiría
+reglas frágiles sobre encabezados en mayúsculas. Costo asumido y medido: sobreviven unas 30
+"oraciones" de un solo token que son rótulos (`tasa`, `prólogo`, `soneto` ×8), un 0.3 % de las
+oraciones del corpus.
+
+**H-08. `word_tokenize` de NLTK deja pegados dos signos que el español usa constantemente.**
+El tokenizador de NLTK está diseñado para el inglés. Sobre este corpus produce:
+
+| Entrada | Sin arreglo | Correcto |
+|---|---|---|
+| `-Porque` | `-porque` | `-` + `porque` |
+| `¿cómo` | `¿cómo` | `¿` + `cómo` |
+
+No es cosmético. El Quijote es casi todo diálogo —el texto trae **7,032 rayas**, 959 `¿` y
+682 `¡`— así que una misma palabra frecuente entraba al vocabulario hasta tres veces:
+`porque`, `-porque` y `¿porque`. Medido sobre el corpus completo son **1,299 tipos espurios**.
+Es dispersión artificial: no viene de la lengua sino de la herramienta, y es la peor clase
+porque el suavizado de la sección 3 gastaría masa de probabilidad en tapar un error propio.
+
+| Tokenización | Vocabulario |
+|---|---|
+| Cruda | 23,947 |
+| Separando la raya | 23,190 |
+| Separando raya y `¿` `¡` | **22,873** |
+
+**D-12. La raya solo se separa cuando no tiene letra a ambos lados.**
+`(?<![letra])-|-(?![letra])` deja intactos compuestos del tipo *físico-químico*. Este corpus
+no tiene ninguno —tras el arreglo quedan **0 tipos con guion interno**—, pero la regla
+correcta es esa y no un `replace("-", " - ")` a ciegas. Los signos se separan **antes** de
+sentenizar, para que Punkt vea `¿` y `-` como piezas sueltas y no como parte de la palabra.
+
+**D-13. Todo se pasa a minúsculas.** `En` y `en` son la misma palabra; distinguirlas solo
+porque una abre oración parte los conteos en dos sin aportar información. Cuesta la
+distinción de nombres propios (*Quijote* / *quijote*), que este laboratorio no necesita.
+
+**D-14. La puntuación se conserva como tokens.** Forma parte de la secuencia que un modelo de
+lenguaje predice, y en el autocompletado de la sección 5 una coma es una sugerencia legítima.
+Consecuencia visible: los tokens más frecuentes del corpus son `,` (40,083) y `.` (7,869).
+
+**H-09. Corpus final tras el pipeline: 10,572 oraciones y 444,836 tokens**, con una longitud
+media de **42.1 tokens por oración** y una máxima de **555**. Las oraciones de Cervantes son
+larguísimas para lo que un n-grama espera, y eso tiene una consecuencia directa en la sección
+2: multiplicar 42 probabilidades menores que 1 —557 en el peor caso— desborda por abajo la
+precisión de punto flotante. Los cálculos tendrán que hacerse en log-espacio, igual que en el
+Lab #3 (su H-18).
+
+**D-15. La partición reparte ORACIONES, aleatoriamente, con `random.seed(42)`.**
+Aleatoria y no estratificada, porque aquí no hay etiquetas que balancear (la razón que sí
+aplicaba en el Lab #3). La unidad es la oración y no el párrafo o el capítulo: cada oración se
+evalúa de forma independiente empezando en `<s>`, así que no hay contexto que se filtre de una
+partición a otra. Semilla 42, la misma de los labs #3 y #4.
+
+**H-10. Tamaños de la partición.**
+
+| Partición | Oraciones | % | Tokens |
+|---|---|---|---|
+| Entrenamiento | 8,457 | 80.0 % | 373,242 |
+| Validación | 1,057 | 10.0 % | 45,780 |
+| Prueba | 1,058 | 10.0 % | 46,958 |
+
+**H-11. Vocabulario 20,497 tipos, y la mitad se estimó con una sola observación.**
+Los *hapax legomena* —palabras que aparecen exactamente una vez en entrenamiento— son
+**10,277, el 50.1 % del vocabulario**. Ese es el dato que explica el OOV: si media lengua
+aparece una sola vez en 373 mil palabras, es inevitable que otra porción parecida no aparezca
+ninguna.
+
+La tasa de OOV se midió de las dos formas posibles, porque responden a preguntas distintas y
+dan cifras muy separadas:
+
+| Partición | OOV por token | OOV por tipo |
+|---|---|---|
+| Validación | 2.72 % | 19.39 % |
+| Prueba | **2.82 %** | **19.60 %** |
+
+La brecha entre 2.8 % y 19.6 % dice que las palabras desconocidas son casi todas raras: las
+frecuentes se aprenden con cualquier corpus, la cola larga no. Aun así, **el 53.3 % de las
+oraciones de prueba contiene al menos un OOV**, que es la cifra que de verdad importa cuando
+se evalúa una oración completa.
+
+**H-12. La dispersión medida sobre n-gramas, que es lo que el modelo necesita haber visto.**
+El OOV mide dispersión a nivel de palabra, pero un modelo n-grama no necesita conocer la
+palabra: necesita haber visto la **secuencia**. Proporción de n-gramas de validación que no
+aparecen ni una vez en entrenamiento:
+
+| n | No vistos en entrenamiento | % |
+|---|---|---|
+| 1 (palabras) | 1,243 / 45,780 | **2.7 %** |
+| 2 (bigramas) | 10,969 / 44,723 | **24.5 %** |
+| 3 (trigramas) | 26,287 / 43,666 | **60.2 %** |
+
+Este es el resultado que justifica las secciones 3 y 4 completas. Con estimación por máxima
+verosimilitud un solo n-grama de cuenta cero anula la probabilidad de toda la oración, porque
+la regla de la cadena multiplica. Con un 60.2 % de trigramas no vistos, el modelo de
+trigramas asignaría probabilidad **cero** a casi cualquier oración nueva y su perplejidad
+sería infinita: no estaría diciendo "esta oración es improbable" sino "esta oración es
+imposible", que es falso. Y es la medición directa del compromiso contexto/dispersión que
+pregunta la sección 6: de n=1 a n=3 el modelo gana contexto y pierde datos, 2.7 % → 60.2 %.
 
 ---
 
 ## Sección 2 — Modelos n-grama
 
-<!-- Estructuras de conteo, probabilidad de la oración de ejemplo bajo cada modelo. -->
+**D-16. Un solo `ModeloNGrama(n)` para los tres modelos, con `k` de suavizado desde el
+principio.** Dos `defaultdict(int)`: `conteo` guarda el n-grama completo y `contexto` sus
+n−1 primeras palabras, que es el denominador. `k=0` es máxima verosimilitud, así que la
+sección 3 no necesita código nuevo, solo pasar otro `k`.
+
+**D-17. El `<s>` se replica n−1 veces y el unigrama lo descarta.**
+Un trigrama necesita dos `<s>` para poder estimar P(w₁ | `<s>`, `<s>`); las oraciones se
+guardan con uno solo, así que el padding se aplica en el modelo. Con n=1 se descarta el
+`<s>`: el unigrama no lo predice ni condiciona en él.
+
+El efecto buscado es que **los tres modelos predigan exactamente los mismos tokens** —las
+palabras más `</s>`— y que sus perplejidades sean comparables en la sección 4. Verificado
+sobre la oración de ejemplo: 13 tokens predichos con n=1, 2 y 3.
+
+**P-01. Un `defaultdict` inserta la clave al consultarla.**
+Leer `self.conteo[grama]` para un n-grama no visto lo añade a la tabla con valor 0. Evaluar
+el corpus de validación completo llenaría las tablas de miles de entradas fantasma y
+cambiaría `len(self.conteo)` entre una celda y otra. En `prob()` se lee con `.get(grama, 0)`;
+`defaultdict` se sigue usando donde sirve, que es acumular en el entrenamiento.
+
+**H-13. Tamaño de las tablas: cada modelo dobla los parámetros con los mismos datos.**
+
+| n | n-gramas distintos | Contextos distintos |
+|---|---|---|
+| 1 | 20,496 | 1 |
+| 2 | 124,041 | 20,496 |
+| 3 | 248,584 | 123,996 |
+
+Los tres se estiman con los mismos 373,242 tokens, así que cada entrada del trigrama se
+apoya en la mitad de evidencia que una del bigrama. Es H-12 visto desde el lado del modelo.
+
+**H-14. El contexto paga, y se puede medir en una sola palabra.**
+
+| Estimación | Cuenta | Probabilidad |
+|---|---|---|
+| P(quijote) | 1,703 / 364,785 | 0.0047 |
+| P(quijote \| don) | 1,697 / 2,069 | **0.8202** |
+| P(quijote \| respondió don) | 212 / 223 | **0.9507** |
+
+**H-15. La oración de ejemplo: el bigrama gana 12 órdenes de magnitud y el trigrama da cero.**
+Oración de validación `- y yo lo digo también - respondió don quijote - .`, 13 tokens
+predichos:
+
+| Modelo | log P | P |
+|---|---|---|
+| Unigrama | −65.179 | 4.93 × 10⁻²⁹ |
+| Bigrama | −38.270 | 2.40 × 10⁻¹⁷ |
+| Trigrama | −inf | **0** |
+
+**H-16. El trigrama se cae por UN solo n-grama de trece.**
+El desglose muestra que doce de los trece trigramas de la oración sí están en entrenamiento,
+varios con contextos muy fuertes (`respondió don quijote` aparece 212 veces sobre 223). El
+único ausente es `lo digo también`, con cuenta 0. Como la regla de la cadena multiplica, ese
+cero anula el producto entero. Es la demostración concreta de por qué hace falta suavizar: el
+modelo no está diciendo que la oración sea rara, está diciendo que es imposible.
+
+**H-17. Sin logaritmos el cálculo no da un número pequeño, da cero.**
+La oración más larga de entrenamiento tiene 329 palabras. Su log-probabilidad bajo el
+unigrama es **−2,050.5**, pero el producto directo de sus factores devuelve **0.0**, porque
+el menor float positivo representable es 5 × 10⁻³²⁴. Sin log-espacio el modelo declararía
+imposible una oración que está en su propio corpus de entrenamiento. Mismo problema y misma
+solución que en el Lab #3 (su H-18).
 
 ---
 
