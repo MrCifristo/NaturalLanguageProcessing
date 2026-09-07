@@ -17,3 +17,5 @@ __pycache__/
 #Documentacion de desarrollo
 devdocs/*
 
+# Notas locales
+*.local.md

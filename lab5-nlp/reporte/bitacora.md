@@ -532,10 +532,85 @@ generalice.
 
 ## Sección 6 — Análisis
 
-<!-- Respuestas a las cuatro preguntas. -->
+**D-24. La pregunta 4 se responde con mediciones, no con criterio.** Pide elegir n "tomando en
+cuenta velocidad, memoria y calidad", así que se miden las tres sobre los modelos ya
+entrenados: memoria como tamaño de las tablas serializadas con `pickle`, velocidad como
+microsegundos por consulta de autocompletado, y calidad como perplejidad de prueba. Se añade
+una cuarta columna que resultó ser la decisiva (H-35).
+
+**H-33. Costo de cada modelo como sistema.**
+
+| n | Memoria | µs/consulta | Contexto conocido en prueba | PPL prueba |
+|---|---|---|---|---|
+| 1 | 0.29 MB | ≈ 8,500 | 100.0 % | 550.6 |
+| **2** | **2.41 MB** | **≈ 200** | **97.1 %** | **397.0** |
+| 3 | 7.20 MB | ≈ 26 | 75.0 % | 1,695.0 |
+
+Los tiempos oscilan entre ejecuciones (se midieron 151 y 266 µs para n=2 en dos corridas); lo
+estable es el orden de magnitud y el orden relativo.
+
+**H-34. La latencia sale invertida: el unigrama es el más lento y el trigrama el más rápido.**
+Contraintuitivo pero con causa clara: el unigrama tiene **un solo contexto** con 20,496
+continuaciones que ordenar en cada consulta, mientras que un contexto de trigrama tiene unas
+pocas. Al subir n, cada consulta toca menos candidatos. En producción se precalcularía el
+top-5 por contexto y la diferencia desaparecería, pero la medición tal cual refleja una
+propiedad real de la estructura.
+
+**H-35. La columna que decide la pregunta 4 es la cobertura de contexto, no la velocidad.**
+El trigrama solo conoce el contexto en el **75.0 %** de las posiciones de prueba: una de cada
+cuatro pulsaciones no produciría ninguna sugerencia. El bigrama cubre el **97.1 %** y el
+unigrama el 100 % (trivialmente, su único contexto es el vacío). El trigrama es rápido porque
+no sabe nada. **Se elige n = 2.**
+
+**H-36. El suavizado destruye el texto generado, al revés que la perplejidad.**
+Muestreando del vocabulario completo con add-k en vez de solo de las continuaciones vistas
+(D-23), el resultado se degrada rápido:
+
+| k | Fracción de tokens que salen de la masa de suavizado | Resultado |
+|---|---|---|
+| 0 | 0 % | `- señor de los cielos , ni zarzo .` |
+| 0.003 | ~40–60 % | `- si queréis cosarios guantero favorecernos o que anduviese` |
+| 1 | 95–100 % | `ahogó salteó puesto cucharada hallasen flaque narigudo` |
+
+El mecanismo es una espiral: al muestrear una palabra rara, el contexto siguiente también es
+raro, y en un contexto raro el suavizado se lleva casi toda la masa (H-20). Evaluar solo paga
+un poco de probabilidad; muestrear paga el vocabulario entero. Es la respuesta medida a la
+pregunta 3 en su segunda mitad.
+
+**H-37. Por qué el suavizado hace falta aunque el corpus crezca.** El problema no es de tamaño
+sino de forma: el vocabulario crece con el corpus, así que |V|² crece más rápido que el número
+de tokens y la tabla nunca se llena. La ley de Zipf lo garantiza, y aquí se ve en H-11: el
+50.1 % del vocabulario aparece una sola vez. Más datos mueven el problema, no lo eliminan.
+
+---
+
+## Reporte escrito
+
+**D-25. Estructura calcada de los labs #3 y #4.** Encabezado con subtítulo, caja `.datos` con las
+cifras del corpus, una sección `##` por sección del enunciado, análisis con las cuatro respuestas
+numeradas y pie con el enlace al repositorio. Se genera con `build_reporte.py` (WeasyPrint), igual
+que las entregas anteriores. Extensión: **2,455 palabras en 4 páginas exactas**, el máximo que
+permite el enunciado (el Lab #4 fueron 2,926 en 4 páginas, con dos figuras en vez de una).
+
+**P-02. Los exponentes en Unicode se rompen al renderizar a PDF.**
+Escritos como `10⁻²⁹` o `5 × 10⁻³²⁴`, WeasyPrint los maquetaba con un hueco entre el signo y las
+cifras (`10⁻ ²⁹`): Georgia no trae todos los superíndices y el fallback de fuente parte la secuencia.
+Se sustituyen por `<sup>` y se añade al CSS `sup { font-size: 0.70em; line-height: 0; vertical-align:
+super; }`. En el notebook no hace falta porque Jupyter los renderiza bien.
+
+**P-03. La figura empujaba la sección 4 a la página siguiente.**
+Con `max-width: 62%`, el bloque «encabezado + figura» no cabía al final de la página 2 y dejaba un
+cuarto de página en blanco. Bajarla a **50 %** hace que entre, sin perder legibilidad. Total: 4
+páginas sin huecos.
+
+**D-26. Qué quedó fuera del reporte por el límite de 4 páginas.** Se sacrificaron los detalles de
+implementación que no cambian ninguna conclusión: el problema del `defaultdict` que inserta claves al
+consultarlas (P-01), el barrido fino de k de la sección 3, la verificación de que la distribución
+suavizada suma 1 (H-21), y los tamaños de las tablas de n-gramas (H-13). Todo eso queda en esta
+bitácora y en el notebook.
 
 ---
 
 ## Problemas encontrados
 
-<!-- P-01, P-02, ... -->
+Ver **P-01** (Sección 2), **P-02** y **P-03** (Reporte escrito).

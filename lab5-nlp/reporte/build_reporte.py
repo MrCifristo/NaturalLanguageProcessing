@@ -86,6 +86,11 @@ code {
     color: #0f4c75;
     background: none;
 }
+sup {
+    font-size: 0.70em;
+    line-height: 0;
+    vertical-align: super;
+}
 img {
     max-width: 44%;
     display: block;
