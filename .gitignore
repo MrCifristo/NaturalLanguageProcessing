@@ -19,3 +19,7 @@ devdocs/*
 
 # Notas locales
 *.local.md
+
+# Vectores preentrenados fastText SUC (1.1 GB, Lab 9): no se suben
+*.vec
+*.bin

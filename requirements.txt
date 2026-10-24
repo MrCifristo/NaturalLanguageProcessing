@@ -23,6 +23,10 @@ scipy==1.18.0
 # --- Descarga del corpus (Lab 5: Don Quijote desde Kaggle) ---
 kagglehub==1.0.2
 
+# --- Embeddings (Lab 9: Word2Vec/FastText con gensim, nn.Embedding con PyTorch) ---
+gensim==4.4.0
+torch==2.14.1
+
 # --- Jupyter ---
 jupyter==1.1.1
 notebook==7.6.1
