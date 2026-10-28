@@ -1,0 +1,134 @@
+tiempo de entrega
+iva
+regimen tributario
+presentacion
+presentación
+sostenimiento de oferta
+sostenimiento de la oferta
+vencimiento
+numero de cuenta bancaria (banrural)
+rgae
+certificado de control de calidad
+validez de la oferta
+correo electronico
+correo electrónico
+dirección
+entrega
+régimen tributario
+teléfono
+número de identificación tributaria
+distribuidor autorizado
+registro sanitario
+vencimiento del producto
+identificacion del proveedor
+cotizar
+telefono
+régimen isr
+número de cuenta bancaria
+fecha de vencimiento
+garantia
+cuenta bancaria
+total de la oferta
+unitario
+aceptacion de bases
+exento
+generico
+multiplos
+no. cuenta bancaria y entidad bancaria
+fecha de vencimiento de lote ofertado
+teléfono, correo electrónico y contacto
+fecha de vencimiento del lote ofertado
+cotización
+nombre, correo y teléfono contacto
+tipo de medicamento
+nombre de insumo
+no aplica
+regimen trubutario
+calidad
+nombre, correo  y teléfono contacto
+identificación del proveedor
+lugar de fabricación
+nombre comercial del producto ofertado
+nombre generico del insumo ofertado
+sostenimiento de oferta.
+presentación a cotizar
+fecha registro sanitario
+nit
+garantía
+presentación del producto ofertado
+direccion fiscal
+ver bases
+leer bases
+presentación a cotizar y fecha de vencimiento
+laboratorio fabricante
+nombre genérico
+producto incluye iva o es exento de iva
+entrega inmediata
+experiencia
+producto generico
+muestra
+especificaciones tecnicas
+requisitos
+direccion
+fabricacion
+nombre, correo y telefono contacto
+cotizacion
+lab. fabricante y pais de origen
+visita tecnica
+horario
+equipo
+presentacion a cotizar
+tiempo de entrega del resultado
+número telefonico
+lugar de fabricacion
+visita técnica
+nombre y telefono contacto
+cuenta y entidad bancaria
+especificaciones técnicas
+carta de compromiso
+pagos trimestrales o retencion definitiva
+certificado de calidad
+identificacion del oferente
+tiempo de garantia
+nombre, telefono y correo electronico
+instalaciones
+plazo de entrega
+iva/exento
+inscripcion sanitario o registro sanitario
+correo
+ver terminos de referencia
+material
+aceptación de bases
+numero de nit
+banco y numero de cuenta bancaria
+indicar monto total con iva
+fabricacion del producto
+ver términos de referencia
+tiempo de entrega el menor  posible
+tiempo de entrega del producto
+prestacion del servicio
+fabricación del producto
+tiempo de prestacion del servicio
+aplica iva o exento
+nombre
+estudio y analisis de las bases
+precio total
+direccion de la empresa
+nombre del representante legal
+cumplimiento de bases
+tipo
+contacto directo
+nombre, telefono y correo del contacto
+monto total con iva
+cantidad
+numero telefonico de la empresa
+fecha de vencimiento del producto ofertado
+régimen isr.
+descripcion tecnica
+razón social
+requisitos de bases
+otros documentos
+correo electronico del contacto de la empresa
+tiempo
+ver especificaciones técnicas
+ver especificaciones tecnicas

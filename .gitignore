@@ -23,3 +23,9 @@ devdocs/*
 # Vectores preentrenados fastText SUC (1.1 GB, Lab 9): no se suben
 *.vec
 *.bin
+
+# Proyecto final: datos crudos, base DuckDB y modelos (no se suben)
+proyecto/datos/
+*.duckdb
+proyecto/modelos/*.joblib
+.env
