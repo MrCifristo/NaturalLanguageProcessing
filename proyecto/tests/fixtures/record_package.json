@@ -1,0 +1,181 @@
+{
+ "uri": "https://ocds.guatecompras.gt/file/json/2026/9",
+ "version": "1.1",
+ "publishedDate": "2026-10-27T03:50:24.568179-06:00",
+ "license": "https://creativecommons.org/licenses/by/4.0",
+ "records": [
+  {
+   "ocid": "ocds-xqjsxa-31859046",
+   "compiledRelease": {
+    "ocid": "ocds-xqjsxa-31859046",
+    "date": "2026-09-09T10:00:09-06:00",
+    "buyer": {
+     "id": "GT-NIT-2342855",
+     "name": "INSTITUTO GUATEMALTECO DE SEGURIDAD SOCIAL -IGSS-"
+    },
+    "tender": {
+     "id": "GT-NOG-31859046",
+     "title": "CÓDIGO IGSS. 5882. BRAZALETE PARA IDENTIFICACIÓN DE PACIENTE",
+     "status": "active",
+     "datePublished": "2026-09-07T08:56:49-06:00",
+     "procurementMethod": "open",
+     "procurementMethodDetails": "Compra Directa con Oferta Electrónica (Art. 43 LCE Inciso b)",
+     "mainProcurementCategory": "goods",
+     "tenderPeriod": {
+      "startDate": "2026-09-07T08:56:49-06:00"
+     },
+     "items": [
+      {
+       "description": "Brazalete",
+       "classification": {
+        "scheme": "UNSPSC",
+        "id": "42261609"
+       },
+       "quantity": 1.0,
+       "unit": {
+        "name": "Caja - 100 Unidades"
+       },
+       "attributes": [
+        {
+         "value": "Obligatorio salvo excepciones",
+         "id": "A937A0B65E3DC27DFBDFF6A2C9728929",
+         "name": "Tipo de obligatoriedad"
+        },
+        {
+         "value": "Color: Rosado; Tipo: Desechable; Uso: Identificación de cadáveres adultos;",
+         "id": "7070FB6CDADE17274005790C55EF6F4C",
+         "name": "Características"
+        },
+        {
+         "value": "BRAZALETE PARA IDENTIFICACIÓN DE PACIENTE",
+         "id": "561A3B7BD9410364271398F65D2C3FFF",
+         "name": "Características Adicionales"
+        }
+       ],
+       "id": "C7F2853A237263F1867889C0F1A13D3F"
+      },
+      {
+       "description": "Brazalete",
+       "classification": {
+        "scheme": "UNSPSC",
+        "id": "42261609"
+       },
+       "quantity": 1.0,
+       "unit": {
+        "name": "Caja - 100 Unidades"
+       },
+       "attributes": [
+        {
+         "value": "Obligatorio salvo excepciones",
+         "id": "266CE44C262492B8CDDF821BDEF21216",
+         "name": "Tipo de obligatoriedad"
+        },
+        {
+         "value": "Color: Celeste; Tipo: Desechable; Uso: Identificación de cadáveres adultos;",
+         "id": "83529ECE3520C98FD33002853248556F",
+         "name": "Características"
+        }
+       ],
+       "id": "6FD282138C7F2E9653CED195403CBA89"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "ocid": "ocds-xqjsxa-31772102",
+   "compiledRelease": {
+    "ocid": "ocds-xqjsxa-31772102",
+    "date": "2026-09-02T14:44:46-06:00",
+    "buyer": {
+     "id": "GT-NIT-2342855",
+     "name": "INSTITUTO GUATEMALTECO DE SEGURIDAD SOCIAL -IGSS-"
+    },
+    "tender": {
+     "id": "GT-NOG-31772102",
+     "title": "CODIGO 77091; GUSELKUMAB SOLUCIÓN INYECTABLE, JERINGA PRECARGADA 100 MG/ML; FYB-M 2830-2026<br />",
+     "status": "withdrawn",
+     "datePublished": "2026-09-01T12:50:28-06:00",
+     "procurementMethod": "open",
+     "procurementMethodDetails": "Compra Directa con Oferta Electrónica (Art. 43 LCE Inciso b)",
+     "mainProcurementCategory": "goods",
+     "tenderPeriod": {
+      "startDate": "2026-09-01T12:50:28-06:00",
+      "endDate": "2026-09-02T14:44:45-06:00"
+     },
+     "items": [
+      {
+       "description": "Guselkumab",
+       "classification": {
+        "scheme": "UNSPSC",
+        "id": "42152428"
+       },
+       "quantity": 3.0,
+       "unit": {
+        "name": "Jeringa prellenada - 1 Unidad"
+       },
+       "attributes": [
+        {
+         "value": "Obligatorio salvo excepciones",
+         "id": "BF998E6311B07CA87167FE431840246B",
+         "name": "Tipo de obligatoriedad"
+        },
+        {
+         "value": " Concentración: 100mg/ml;  Forma farmacéutica: Solución inyectable;  Vía de administración: Subcutánea; ",
+         "id": "EFAB6D7FFF7AE2827B495F64E598E3B3",
+         "name": "Características"
+        },
+        {
+         "value": "TELEFONO",
+         "id": "D14EB2959150060CAC54EB35107E2E2A",
+         "name": "Características Adicionales"
+        },
+        {
+         "value": "UNITARIO",
+         "id": "4CF904C754C510276FF21EDE08344152",
+         "name": "Características Adicionales"
+        },
+        {
+         "value": "TOTAL DE LA OFERTA",
+         "id": "98690177D36F5278330CAA5BD8609319",
+         "name": "Características Adicionales"
+        },
+        {
+         "value": "CORREO ELECTRONICO",
+         "id": "D5AB616EF7EC1A952848515CD532115D",
+         "name": "Características Adicionales"
+        },
+        {
+         "value": "GENERICO",
+         "id": "7B44AA179F0B4EC3CF89597D6949018A",
+         "name": "Características Adicionales"
+        },
+        {
+         "value": "EXENTO",
+         "id": "8F456ED21341B436124142EE2132D886",
+         "name": "Características Adicionales"
+        },
+        {
+         "value": "TIEMPO DE ENTREGA",
+         "id": "B401CC1A13C77679ECDBEC3644749CE0",
+         "name": "Características Adicionales"
+        },
+        {
+         "value": "REGIMEN TRIBUTARIO",
+         "id": "C10C779F8CBACCF03033DE4E06C7C63E",
+         "name": "Características Adicionales"
+        },
+        {
+         "value": "MULTIPLOS",
+         "id": "F9BDFEA39CE77CBF912DE002CE66D7A4",
+         "name": "Características Adicionales"
+        }
+       ],
+       "id": "FDA1B53A7B7C60CCC1CCE850E60C1CD2"
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

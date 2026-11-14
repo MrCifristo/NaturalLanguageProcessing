@@ -13,9 +13,23 @@ from src.captura.extraer import leer_mes
 from src.db import conectar
 
 COLUMNAS = [
-    "ocid", "nog", "titulo", "items_texto", "caracteristicas", "n_items", "unspsc",
-    "entidad", "entidad_id", "modalidad", "categoria", "estado",
-    "fecha_publicacion", "fecha_inicio", "fecha_cierre", "fecha_release", "mes_archivo",
+    "ocid",
+    "nog",
+    "titulo",
+    "items_texto",
+    "caracteristicas",
+    "n_items",
+    "unspsc",
+    "entidad",
+    "entidad_id",
+    "modalidad",
+    "categoria",
+    "estado",
+    "fecha_publicacion",
+    "fecha_inicio",
+    "fecha_cierre",
+    "fecha_release",
+    "mes_archivo",
 ]
 
 
@@ -26,31 +40,44 @@ def procesar_mes(con, anio: int, mes: int) -> str:
     previo = con.execute(
         "SELECT sha FROM corridas WHERE mes_archivo = ? AND estado = 'ok' ORDER BY fecha DESC LIMIT 1",
         [mes_archivo],
-    ).fetchone()
-    if previo and previo[0] == sha:
+    ).fetchall()  # fetchone deja el resultado abierto y DuckDB 2 bloquea el register de abajo
+    if previo and previo[0][0] == sha:
         estado, nuevos, actualizados = "sin_cambios", 0, 0
     else:
         # SHA distinto: el ZIP local está desactualizado
-        ruta = ocds_client.descargar_mes(anio, mes, forzar=previo is not None)
+        ruta = ocds_client.descargar_mes(anio, mes, forzar=bool(previo))
         df = leer_mes(ruta)
         con.register("nuevo", df)
-        nuevos = con.execute("SELECT count(*) FROM nuevo WHERE ocid NOT IN (SELECT ocid FROM procesos)").fetchone()[0]
+        nuevos = con.execute(
+            "SELECT count(*) FROM nuevo WHERE ocid NOT IN (SELECT ocid FROM procesos)"
+        ).fetchone()[0]
         actualizados = len(df) - nuevos
         cols = ", ".join(COLUMNAS)
         # Upsert por ocid: conserva primera_vez_visto y las columnas de texto ya calculadas
-        con.execute(f"""
+        con.execute(
+            f"""
             INSERT INTO procesos ({cols}, primera_vez_visto, ultima_actualizacion)
             SELECT {cols}, ?, ? FROM nuevo
             ON CONFLICT (ocid) DO UPDATE SET
                 {", ".join(f"{c} = excluded.{c}" for c in COLUMNAS if c != "ocid")},
                 ultima_actualizacion = excluded.ultima_actualizacion
-        """, [ahora, ahora])
+        """,
+            [ahora, ahora],
+        )
         con.unregister("nuevo")
         estado = "ok"
 
     con.execute(
         "INSERT INTO corridas VALUES (?, ?, ?, ?, ?, ?, ?, NULL)",
-        [f"{mes_archivo}@{ahora:%Y%m%dT%H%M%S}", ahora, mes_archivo, sha, estado, nuevos, actualizados],
+        [
+            f"{mes_archivo}@{ahora:%Y%m%dT%H%M%S%f}",
+            ahora,
+            mes_archivo,
+            sha,
+            estado,
+            nuevos,
+            actualizados,
+        ],
     )
     return f"{mes_archivo}: {estado}, {nuevos} nuevos, {actualizados} actualizados"
 
@@ -71,10 +98,15 @@ def main() -> None:
     for anio, mes in meses(args.desde):
         try:
             print(procesar_mes(con, anio, mes), flush=True)
-        except Exception as e:  # un mes con error no detiene el histórico
+        except Exception as e:  # noqa: BLE001 — un mes con error no detiene el histórico
             con.execute(
                 "INSERT INTO corridas VALUES (?, ?, ?, NULL, 'error', 0, 0, ?)",
-                [f"gc-{anio}-{mes}@{datetime.now():%Y%m%dT%H%M%S}", datetime.now(), f"gc-{anio}-{mes}", str(e)],
+                [
+                    f"gc-{anio}-{mes}@{datetime.now():%Y%m%dT%H%M%S%f}",
+                    datetime.now(),
+                    f"gc-{anio}-{mes}",
+                    str(e),
+                ],
             )
             print(f"gc-{anio}-{mes}: error {e}", flush=True)
     con.close()

@@ -1,0 +1,31 @@
+[project]
+name = "radar-licitaciones"
+version = "0.1.0"
+description = "Radar de Licitaciones: concursos relevantes de Guatecompras para ALBRAN Industries"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+# Los bloques de código de los .md son ilustrativos; no se formatean.
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "BLE"]
+# El largo de línea lo maneja el formateador; quedan largas solo regex y cadenas.
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# En el notebook los imports de src/ van después de ajustar sys.path.
+"*.ipynb" = ["E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.format]
+# El notebook se lintea pero no se reformatea: sus celdas se editan a mano.
+exclude = ["*.ipynb"]

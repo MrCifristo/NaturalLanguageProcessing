@@ -33,11 +33,14 @@ CREATE TABLE IF NOT EXISTS procesos (
     ultima_actualizacion TIMESTAMP
 );
 
+-- Una fila por proceso muestreado; etiqueta_humana queda NULL hasta que se etiqueta (D-08)
 CREATE TABLE IF NOT EXISTS etiquetas (
-    ocid               VARCHAR,
-    origen_muestra     VARCHAR,
-    etiqueta_llm       BOOLEAN,
-    justificacion_llm  VARCHAR,
+    ocid               VARCHAR PRIMARY KEY,
+    conjunto           VARCHAR,       -- 'entrenamiento' | 'validacion' | 'prueba'
+    ronda              INTEGER,       -- 0 = semilla; NULL en validación y prueba
+    origen_muestra     VARCHAR,       -- 'prefiltro' | 'aleatoria' | 'incertidumbre' | 'pooling'
+    p_propuesta        DOUBLE,        -- P mostrada al etiquetar; NULL si fue a ciegas
+    terminos_propuesta VARCHAR,
     etiqueta_humana    BOOLEAN,
     fecha              TIMESTAMP
 );
@@ -73,9 +76,24 @@ CREATE TABLE IF NOT EXISTS corridas (
 """
 
 
+def migrar(con: duckdb.DuckDBPyConnection) -> None:
+    """Quita la tabla etiquetas con columnas del LLM (antes de D-08), solo si está vacía."""
+    viejas = con.execute(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = 'etiquetas' AND column_name = 'etiqueta_llm'"
+    ).fetchall()
+    if not viejas:
+        return
+    n = con.execute("SELECT count(*) FROM etiquetas").fetchall()[0][0]
+    if n:
+        raise RuntimeError(f"etiquetas tiene el esquema viejo y {n} filas; migrar a mano")
+    con.execute("DROP TABLE etiquetas")
+
+
 def conectar(solo_lectura: bool = False) -> duckdb.DuckDBPyConnection:
     RUTA_DB.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(RUTA_DB), read_only=solo_lectura)
     if not solo_lectura:
+        migrar(con)
         con.execute(ESQUEMA)
     return con

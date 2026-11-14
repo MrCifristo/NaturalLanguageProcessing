@@ -7,15 +7,15 @@ from pathlib import Path
 
 # Códigos internos que las entidades pegan al título; no aportan significado
 PATRONES_RUIDO = [
-    r"\bc[oó]d(?:igo)?\.?\s*(?:provisional\s+)?igss(?:\s+provisional)?\s*:?\s*[\w/.-]+",  # CODIGO IGSS: 227281
-    r"\bpedido\s*:?\s*(?:bm\s+)?(?:no\.?\s*)?[\w/-]*\d[\w/-]*",       # PEDIDO No. 38811/2026, PEDIDO ADM0794/2026
-    r"\bevento\s*(?:no\.?)?\s*:?\s*[\d/-]+",                        # EVENTO 1438/2026
-    r"\bamparo\s+no\.?\s*[\d-]+",                                     # AMPARO No. 02075-2026-00197
-    r"\b[a-z]{2,6}\s+no\.\s*[\w/-]*\d[\w/-]*",                        # MSPAS No. 2026-ROO-CD-6389, EVENTO NO. 1279/2025
+    r"\bc[oó]d(?:igo)?\.?\s*(?:provisional\s+)?igss(?:\s+provisional)?\s*[:.]?\s*[\w/.-]+",  # CODIGO IGSS: 227281, CÓDIGO IGSS. 5882.
+    r"\bpedido\s*:?\s*(?:bm\s+)?(?:no\.?\s*)?[\w/-]*\d[\w/-]*",  # PEDIDO No. 38811/2026, PEDIDO ADM0794/2026
+    r"\bevento\s*(?:no\.?)?\s*:?\s*[\d/-]+",  # EVENTO 1438/2026
+    r"\bamparo\s+no\.?\s*[\d-]+",  # AMPARO No. 02075-2026-00197
+    r"\b[a-z]{2,6}\s+no\.\s*[\w/-]*\d[\w/-]*",  # MSPAS No. 2026-ROO-CD-6389, EVENTO NO. 1279/2025
     r"\b(?:ppr|solicitud|c[oó]digo|referencia)\s*(?:no\.?)?\s*:?\s*\d[\d/-]*",  # PPR: 69706-83245, CODIGO 435
-    r"\b\d+/20\d\d\b",                                                # 1679/2025 suelto
-    r"\[[\w-]+\]",                                                    # [DA-DAC-A18][CD-271]
-    r"\bp[-\s]*\d[\d,]{3,}(?:/\d{4})?",                               # P-11111, P 10026, P- 3,793/2026
+    r"\b\d+/20\d\d\b",  # 1679/2025 suelto
+    r"\[[\w-]+\]",  # [DA-DAC-A18][CD-271]
+    r"\bp[-\s]*\d[\d,]{3,}(?:/\d{4})?",  # P-11111, P 10026, P- 3,793/2026
     r"\bnog\s*:?\s*\d+",
 ]
 RUIDO = re.compile("|".join(PATRONES_RUIDO), flags=re.IGNORECASE)
@@ -40,7 +40,11 @@ _campos: set[str] | None = None
 def campos_formulario() -> set[str]:
     global _campos
     if _campos is None:
-        _campos = set(RUTA_CAMPOS.read_text(encoding="utf-8").splitlines()) if RUTA_CAMPOS.exists() else set()
+        _campos = (
+            set(RUTA_CAMPOS.read_text(encoding="utf-8").splitlines())
+            if RUTA_CAMPOS.exists()
+            else set()
+        )
     return _campos
 
 
@@ -54,7 +58,11 @@ def texto_entrada(titulo: str, items_texto: str | None, caracteristicas: str | N
     partes = [titulo]
     for campo in (items_texto, caracteristicas):
         for frag in (campo or "").split(" | "):
-            if frag and frag.lower() not in vistos and frag.strip().lower() not in campos_formulario():
+            if (
+                frag
+                and frag.lower() not in vistos
+                and frag.strip().lower() not in campos_formulario()
+            ):
                 partes.append(frag)
                 vistos += " " + frag.lower()
     return " | ".join(partes)[:MAX_CARACTERES]
@@ -64,7 +72,9 @@ def quitar_ruido(texto: str) -> str:
     texto = HTML.sub(" ", html.unescape(texto))
     texto = RUIDO.sub(" ", texto)
     texto = FRASES_PLANTILLA.sub(" ", texto)
-    texto = "".join(c if unicodedata.category(c)[0] != "C" else " " for c in texto)  # caracteres de control
+    texto = "".join(
+        c if unicodedata.category(c)[0] != "C" else " " for c in texto
+    )  # caracteres de control
     texto = SEPARADORES_SEGUIDOS.sub(r"\1", re.sub(r"\s+", " ", texto))
     return SEPARADORES_INICIO.sub("", texto).strip()
 
@@ -72,7 +82,9 @@ def quitar_ruido(texto: str) -> str:
 def quitar_tildes(texto: str) -> str:
     # La ñ se conserva: "año" y "ano" no son la misma palabra
     texto = texto.replace("ñ", "\0")
-    texto = "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
+    texto = "".join(
+        c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn"
+    )
     return texto.replace("\0", "ñ")
 
 

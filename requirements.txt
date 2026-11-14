@@ -27,6 +27,21 @@ kagglehub==1.0.2
 gensim==4.4.0
 torch==2.14.1
 
+# --- Proyecto final: Radar de Licitaciones (proyecto/) ---
+requests==2.34.2
+duckdb==2.0.0
+pyarrow==26.0.0
+spacy==3.8.18
+es_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/es_core_news_sm-3.8.0/es_core_news_sm-3.8.0-py3-none-any.whl
+sentence-transformers==6.3.0
+streamlit==1.67.0
+python-dotenv==1.2.4
+joblib==1.5.3
+
+# --- Calidad (proyecto/: pruebas, formato y lint) ---
+pytest==9.2.0
+ruff==0.17.5
+
 # --- Jupyter ---
 jupyter==1.1.1
 notebook==7.6.1

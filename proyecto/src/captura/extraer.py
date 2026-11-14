@@ -30,7 +30,9 @@ def _fila(record: dict, mes_archivo: str) -> dict:
         "nog": (t.get("id") or "").removeprefix("GT-NOG-"),
         "titulo": titulo,
         # tender.description no viene en Guatecompras; el detalle está en los ítems
-        "items_texto": " | ".join(t for t in _unicos(it.get("description") for it in items) if t != titulo),
+        "items_texto": " | ".join(
+            t for t in _unicos(it.get("description") for it in items) if t != titulo
+        ),
         "caracteristicas": " | ".join(a for a in _unicos(atributos) if a != titulo),
         "n_items": len(items),
         "unspsc": ",".join(_unicos((it.get("classification") or {}).get("id") for it in items)),
@@ -56,5 +58,9 @@ def leer_mes(ruta_zip: Path) -> pd.DataFrame:
 
     # Fechas con zona -06:00; se guardan en hora de Guatemala sin zona
     for col in ("fecha_publicacion", "fecha_inicio", "fecha_cierre", "fecha_release"):
-        df[col] = pd.to_datetime(df[col], utc=True, errors="coerce").dt.tz_convert("America/Guatemala").dt.tz_localize(None)
+        df[col] = (
+            pd.to_datetime(df[col], utc=True, errors="coerce")
+            .dt.tz_convert("America/Guatemala")
+            .dt.tz_localize(None)
+        )
     return df
