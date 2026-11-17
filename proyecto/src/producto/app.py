@@ -176,7 +176,6 @@ MESES = [
     "enero", "febrero", "marzo", "abril", "mayo", "junio",
     "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ]  # fmt: skip
-DECISIONES = {"me_interesa": "Marcaste: me interesa", "no_aplica": "Marcaste: no aplica"}
 
 
 def dias_disponibles(con: duckdb.DuckDBPyConnection) -> list[dict]:
@@ -331,27 +330,58 @@ a.titulo:focus-visible { outline: 2px solid #5543D1; outline-offset: 2px; }
 p.entidad { color: #5C636B; font-size: .9rem; margin: .25rem 0 .55rem; }
 p.porque { font-size: .9rem; margin: 0 0 .2rem; max-width: 72ch; }
 p.porque b { font-weight: 500; }
+p.porque i { font-style: normal; color: #5543D1; }
 p.cierre { color: #5C636B; font-size: .82rem; margin: 0; }
-p.decision { font-size: .85rem; color: #5543D1; font-weight: 500; margin: .3rem 0 0; }
+/* Botones de decisión: compactos, para que no pesen más que el concurso */
+.stApp [data-testid="stHorizontalBlock"] .stButton button,
+.stApp [data-testid="stLayoutWrapper"] .stButton button {
+  min-height: 0; padding: .28rem .85rem; font-size: .84rem; border-radius: 6px; }
 hr.fila { border: none; border-top: 1px solid #DEDBD3; margin: 1.1rem 0; }
-.extra a { color: #1E2329; }
-.extra p { margin: 0 0 .7rem; font-size: .92rem; }
+.extra a { color: #1E2329; text-decoration: none; font-weight: 500; }
+.extra a:hover { text-decoration: underline; text-decoration-color: #5543D1; text-underline-offset: 3px; }
+.extra p { margin: 0 0 .8rem; font-size: .92rem; line-height: 1.4; }
+p.resumen b { color: #1E2329; font-weight: 500; }
 .extra span { color: #5C636B; font-size: .84rem; }
 </style>
 """
 
 
-def fila_recomendacion(st, con, dia: date, rec: dict) -> None:
+def lineas_de_negocio() -> dict[str, str]:
+    """Proyecto del portafolio → línea de negocio de ALBRAN."""
+    from src.modelo.similitud import RUTA_PORTAFOLIO
+
+    try:
+        import pandas as pd
+
+        datos = pd.read_csv(RUTA_PORTAFOLIO)
+    except (FileNotFoundError, ValueError):
+        return {}
+    return dict(zip(datos["proyecto"], datos["linea_negocio"], strict=True))
+
+
+def explicacion(rec: dict, lineas: dict[str, str]) -> str:
+    """Por qué se recomienda: el proyecto parecido, su línea de negocio y los términos."""
+    proyecto = rec["proyecto_similar"] or ""
+    linea = lineas.get(proyecto, "")
+    if proyecto == linea or not proyecto:
+        texto = f"Encaja en la línea de <i>{html.escape(linea.lower())}</i>." if linea else ""
+    else:
+        texto = f"Se parece a <b>{html.escape(proyecto)}</b>"
+        texto += f", de <i>{html.escape(linea.lower())}</i>." if linea else "."
+    terminos = a_favor(rec["terminos_top"])
+    if terminos:
+        texto += f" Palabras que más pesaron: {html.escape(terminos)}."
+    return texto.strip()
+
+
+def fila_recomendacion(st, con, dia: date, rec: dict, lineas: dict[str, str]) -> None:
     cifra, texto, urgente = plazo(dia, rec["fecha_cierre"])
     url = URL_CONCURSO.format(nog=rec["nog"])
-    terminos = a_favor(rec["terminos_top"])
-    porque = f"Se parece a <b>{html.escape(rec['proyecto_similar'] or '')}</b>."
-    if terminos:
-        porque += f" Palabras que más pesaron: {html.escape(terminos)}."
     cierre = f"Cierra el {fecha_larga(rec['fecha_cierre'])}." if rec["fecha_cierre"] else ""
     modalidad = modalidad_corta(rec["modalidad"])
+    pie = " ".join(x for x in (f"{modalidad}." if modalidad else "", cierre) if x)
 
-    izq, centro, der = st.columns([1.05, 6.6, 1.9], gap="medium")
+    izq, centro = st.columns([1, 8.2], gap="medium")
     izq.markdown(
         f'<div class="plazo{" urgente" if urgente else ""}"><span class="cifra">{cifra}</span>'
         f'<span class="texto">{texto}</span></div>',
@@ -361,21 +391,24 @@ def fila_recomendacion(st, con, dia: date, rec: dict) -> None:
         f'<a class="titulo" href="{url}" target="_blank" rel="noopener">'
         f"{html.escape(titulo_legible(rec['titulo']))}</a>"
         f'<p class="entidad">{html.escape(entidad_legible(rec["entidad"]))}</p>'
-        f'<p class="porque">{porque}</p>'
-        f'<p class="cierre">{" ".join(x for x in (f"{modalidad}." if modalidad else "", cierre) if x)}</p>',
+        f'<p class="porque">{explicacion(rec, lineas)}</p>'
+        f'<p class="cierre">{pie}</p>',
         unsafe_allow_html=True,
     )
-    with der:
-        if der.button("Me interesa", key=f"si-{rec['ocid']}", width="stretch"):
-            decidir(con, rec["ocid"], "me_interesa")
-            st.rerun()
-        if der.button("No aplica", key=f"no-{rec['ocid']}", width="stretch"):
-            decidir(con, rec["ocid"], "no_aplica")
-            st.rerun()
-        if rec["decision"]:
-            der.markdown(
-                f'<p class="decision">{DECISIONES[rec["decision"]]}</p>', unsafe_allow_html=True
-            )
+    # La decisión elegida queda resaltada; cambiarla guarda una nueva (vale la última)
+    with centro.container(horizontal=True, gap="small"):
+        for decision, etiqueta in (("me_interesa", "Me interesa"), ("no_aplica", "No aplica")):
+            elegido = rec["decision"] == decision
+            if (
+                st.button(
+                    etiqueta,
+                    key=f"{decision}-{rec['ocid']}",
+                    type="primary" if elegido else "secondary",
+                )
+                and not elegido
+            ):
+                decidir(con, rec["ocid"], decision)
+                st.rerun()
 
 
 def vista_recomendaciones() -> None:
@@ -411,17 +444,24 @@ def vista_recomendaciones() -> None:
         computo = [r for r in lista if r["seccion"] == "computo"]
 
         publicados = f"{info['publicados']:,}".replace(",", "\u202f")  # miles con espacio fino
+        urgentes = sum(plazo(dia, r["fecha_cierre"])[2] for r in principal)
+        resumen = f"Ese día se publicaron {publicados} procesos en Guatecompras."
+        if principal:
+            resumen += (
+                f" Estos son los {len(principal)} que más se parecen a lo que hace ALBRAN,"
+                " con el plazo que queda para ofertar."
+            )
+        if urgentes:
+            resumen += (
+                f" <b>{urgentes} {'cierra' if urgentes == 1 else 'cierran'} en tres días o"
+                " menos.</b>"
+            )
         st.markdown(
             f'<h1 class="radar">Concursos para el {fecha_larga(dia)}</h1>'
-            f'<p class="resumen">Ese día se publicaron {publicados} procesos en Guatecompras. '
-            + (
-                f"Estos son los {len(principal)} que más se parecen a lo que hace ALBRAN, con "
-                "el plazo que queda para ofertar.</p>"
-                if principal
-                else "</p>"
-            ),
+            f'<p class="resumen">{resumen}</p>',
             unsafe_allow_html=True,
         )
+        lineas = lineas_de_negocio()
         if not principal:
             st.markdown(
                 '<p class="resumen">Ese día no hubo concursos que el modelo considere '
@@ -431,7 +471,7 @@ def vista_recomendaciones() -> None:
         for i, rec in enumerate(principal):
             if i:
                 st.markdown('<hr class="fila">', unsafe_allow_html=True)
-            fila_recomendacion(st, con, dia, rec)
+            fila_recomendacion(st, con, dia, rec, lineas)
 
         if computo:
             st.markdown('<hr class="fila">', unsafe_allow_html=True)
