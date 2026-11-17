@@ -128,3 +128,52 @@ def test_insertar_pooling_idempotente(con):
 def test_union_top_solo_metodos_disponibles(modelo):
     tops = union_top(puntajes(procesos(), modelo, alfa=0.5))
     assert set(tops) == {"palabra_clave", "categoria", "clasificador"}
+
+
+def test_union_top_incluye_combinado_sin_tope():
+    puntuados = pd.DataFrame(
+        {
+            "ocid": [f"c-{i}" for i in range(12)],
+            "titulo": ["Computadora portátil"] * 12,
+            "unspsc": [""] * 12,
+            "combinado": np.linspace(1, 0, 12),
+        }
+    )
+    tops = union_top(puntuados)
+    assert len(tops["combinado"]) == 5 and len(tops["combinado_sin_tope"]) == 10
+
+
+def test_tope_de_computadoras_en_el_combinado():
+    titulos = [f"Compra de {i} computadoras portátiles" for i in range(8)] + [
+        "Desarrollo de sistema web",
+        "Servidor rack 2U",
+        "Licencia de firewall",
+        "Compra de frijol",
+        "Compra de jeringas",
+    ]
+    puntuados = pd.DataFrame(
+        {
+            "ocid": [f"p-{i:02d}" for i in range(len(titulos))],
+            "titulo": titulos,
+            "unspsc": ["43211503"] * 8 + ["", "43211501", "", "", ""],
+            "combinado": np.linspace(1, 0.1, len(titulos)),
+        }
+    )
+    seleccion = top(puntuados, "combinado")
+    computo = seleccion["titulo"].str.contains("computadoras")
+    assert computo.sum() == 5 and len(seleccion) == 10
+    # Los 5 de cómputo son los de mayor score y el resto sigue el orden
+    assert seleccion["ocid"].tolist()[:5] == [f"p-{i:02d}" for i in range(5)]
+    assert "Servidor rack 2U" in seleccion["titulo"].tolist()
+    # Sin tope, el top se llena de computadoras
+    assert (
+        top(puntuados, "combinado", max_computo=None)["titulo"].str.contains("computadoras").sum()
+        == 8
+    )
+    # Los otros métodos no llevan tope
+    assert (
+        top(puntuados.rename(columns={"combinado": "clasificador"}), "clasificador")["titulo"]
+        .str.contains("computadoras")
+        .sum()
+        == 8
+    )

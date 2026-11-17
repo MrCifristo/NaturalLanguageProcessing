@@ -55,8 +55,14 @@ def elegir_dias(con: duckdb.DuckDBPyConnection, n: int = 4, semilla: int = 42) -
 
 
 def union_top(puntuados: pd.DataFrame) -> dict[str, list[str]]:
-    """ocids del top 10 de cada método disponible."""
-    return {m: top(puntuados, m)["ocid"].tolist() for m in METODOS if m in puntuados}
+    """ocids del top 10 de cada método disponible, más el combinado sin el tope de cómputo.
+
+    La evaluación compara el combinado con tope y sin tope (D-16), así que los dos van al pool.
+    """
+    tops = {m: top(puntuados, m)["ocid"].tolist() for m in METODOS if m in puntuados}
+    if "combinado" in puntuados:
+        tops["combinado_sin_tope"] = top(puntuados, "combinado", max_computo=None)["ocid"].tolist()
+    return tops
 
 
 def insertar(con: duckdb.DuckDBPyConnection, ocids: list[str]) -> int:

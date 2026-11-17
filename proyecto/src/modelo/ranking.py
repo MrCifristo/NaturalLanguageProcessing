@@ -90,15 +90,46 @@ def puntajes(
     return salida
 
 
-def top(puntuados: pd.DataFrame, metodo: str, n: int = TOP) -> pd.DataFrame:
-    """Los n de mayor puntaje; en las líneas base, solo los que pasan el filtro (puntaje > 0)."""
+# Venta de computadoras: título con el equipo o UNSPSC de la familia 432115 (computadores),
+# sin 43211501 (servidores), que no cuentan para el tope
+COMPUTO = re.compile(
+    r"\b(?:computadora|computador|portatil(?:es)?|laptops?|estacion(?:es)? de trabajo|cpu"
+    r"|unidad(?:es)? de procesamiento|todo en uno|all in one)\b"
+)
+UNSPSC_COMPUTO = re.compile(r"(?:^|,)432115(?!01)")
+
+# Tope de computadoras en la lista del día (D-16): solo en el combinado, que es el producto
+MAX_COMPUTO = {"combinado": 5}
+
+
+def es_venta_computo(datos: pd.DataFrame) -> np.ndarray:
+    titulos = datos["titulo"].fillna("").str.lower().map(quitar_tildes)
+    por_titulo = titulos.str.contains(COMPUTO)
+    por_unspsc = datos["unspsc"].fillna("").str.contains(UNSPSC_COMPUTO)
+    return (por_titulo | por_unspsc).to_numpy()
+
+
+def top(
+    puntuados: pd.DataFrame, metodo: str, n: int = TOP, max_computo: int | None = -1
+) -> pd.DataFrame:
+    """Los n de mayor puntaje; en las líneas base, solo los que pasan el filtro (puntaje > 0).
+
+    max_computo limita cuántas ventas de computadoras entran; los lugares que sobran pasan a
+    los siguientes por puntaje. -1 usa el tope del método (MAX_COMPUTO) y None no limita.
+    """
     if metodo not in puntuados:
         return puntuados.iloc[0:0]
     datos = puntuados
     if metodo in ("palabra_clave", "categoria"):
         datos = datos[datos[metodo] > 0]
     # Empates: por ocid, para que el top sea reproducible
-    return datos.sort_values([metodo, "ocid"], ascending=[False, True]).head(n)
+    datos = datos.sort_values([metodo, "ocid"], ascending=[False, True])
+    if max_computo == -1:
+        max_computo = MAX_COMPUTO.get(metodo)
+    if max_computo is not None:
+        computo = es_venta_computo(datos)
+        datos = datos[~computo | (np.cumsum(computo) <= max_computo)]
+    return datos.head(n)
 
 
 def ajustar_alfa(

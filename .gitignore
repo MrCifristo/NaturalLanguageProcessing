@@ -28,4 +28,5 @@ devdocs/*
 proyecto/datos/
 *.duckdb
 proyecto/modelos/*.joblib
+proyecto/modelos/*.npz
 .env
