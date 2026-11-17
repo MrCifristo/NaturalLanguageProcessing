@@ -126,8 +126,8 @@ fecha de vencimiento del producto ofertado
 régimen isr.
 descripcion tecnica
 razón social
-requisitos de bases
 otros documentos
+requisitos de bases
 correo electronico del contacto de la empresa
 tiempo
 ver especificaciones técnicas
