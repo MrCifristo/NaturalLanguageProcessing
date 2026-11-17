@@ -1,6 +1,6 @@
 # Radar de Licitaciones
 > Contexto para Claude Code · Proyecto final de Procesamiento de Lenguaje Natural (UFM) · ALBRAN Industries
-> Estado: captura, exploración y pruebas hechas, criterio de relevancia cerrado; sigue la parte 3 (ruff, muestreo) · Actualizado: 14/11/2026
+> Estado: captura, exploración, pruebas, muestreo y vista de etiquetado hechos; sigue el etiquetado de la semilla y `activo.py` · Actualizado: 16/11/2026
 
 ## Contexto
 
@@ -81,7 +81,7 @@ No cambiar sin confirmación explícita:
 
 ## Fase actual
 
-**Cierre de la Fase 2 y preparación de la Fase 3.** Entrega final el **domingo 15/11/2026**. Detalle y criterios de terminado en `docs/05-plan-de-trabajo.md` (el plan del fin de semana está al final). Lo hecho y lo que falta, con fechas, está en `reporte/bitacora.md`.
+**Cierre de la Fase 2 y preparación de la Fase 3.** Entrega final el **martes 17/11/2026 a las 16:00** (se movió del domingo 15/11; el plan de `docs/05` todavía dice 15/11). Detalle y criterios de terminado en `docs/05-plan-de-trabajo.md` (el plan del fin de semana está al final). Lo hecho y lo que falta, con fechas, está en `reporte/bitacora.md`.
 
 Se trabaja **por partes**: cerrar una, reportar y pedir confirmación antes de la siguiente.
 
@@ -92,9 +92,11 @@ Se trabaja **por partes**: cerrar una, reportar y pedir confirmación antes de l
 - Correcciones que atraparon las pruebas: P-03 (`fetchone` en DuckDB 2), P-04 (id de `corridas`) y P-05 (regex de IGSS).
 - Decisiones D-08 (sin LLM, aprendizaje activo) y D-09 (correo en vez de Slack), con los docs 01, 03, 04 y 05 actualizados.
 - Criterio de relevancia cerrado caso por caso, en `docs/04`, sección 4. Hallazgos H-11 (ruido del pre-filtro) y H-12 (tasa de positivos ~2 %).
-- Nada de esto está commiteado. Avisar a Milton que es buen momento para un commit si no lo hizo.
 
 ### Lo siguiente, en orden (parte 3)
+
+Al 16/11 los 300 procesos de semilla y validación están muestreados en la base, pero ninguno etiquetado.
+
 
 1. ~~Ruff en `pyproject.toml` y `requirements.txt` de la raíz~~ (hecho el 14/11; `ruff check src tests` pasa, el notebook 01 tiene 7 avisos pendientes).
 2. ~~Esquema de `etiquetas`~~ (hecho el 14/11; `src/db.py::migrar` recreó la tabla vacía; `ocid` es llave y `etiqueta_humana` NULL marca lo muestreado pendiente).
