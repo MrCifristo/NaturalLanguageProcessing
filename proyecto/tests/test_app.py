@@ -80,3 +80,58 @@ def test_nombre_de_lote_no_cambia_al_etiquetar(con_lote):
     guardar(con_lote, "v-0", False)
     guardar(con_lote, "e-0", True)
     assert nombres() == antes == ["Semilla", "Validación"]
+
+
+def test_titulos_y_entidades_legibles():
+    from src.producto.app import entidad_legible, titulo_legible
+
+    assert titulo_legible("-COMPRA DIRECTA- SUMINISTRO DE CPU Y UPS PARA EL IGSS") == (
+        "Compra directa- suministro de CPU y UPS para el IGSS"
+    )
+    assert titulo_legible("SERVIDORES EN RED, SON DOS") == "Servidores en red, son dos"
+    assert titulo_legible("Compra Directa por Recarga") == "Compra Directa por Recarga"
+    largo = titulo_legible("palabra " * 40, maximo=30)
+    assert largo.endswith("…") and len(largo) <= 31
+    assert entidad_legible("INSTITUTO NACIONAL DE ELECTRIFICACIÓN -INDE-") == (
+        "Instituto Nacional de Electrificación -INDE-"
+    )
+
+
+def test_plazo_y_modalidad():
+    from datetime import date, datetime
+
+    from src.producto.app import a_favor, modalidad_corta, plazo
+
+    dia = date(2026, 10, 9)
+    assert plazo(dia, None) == ("—", "sin fecha de cierre", False)
+    assert plazo(dia, datetime(2026, 10, 10, 9)) == ("1", "día para ofertar", True)
+    assert plazo(dia, datetime(2026, 10, 22, 14)) == ("13", "días para ofertar", False)
+    assert plazo(dia, datetime(2026, 10, 9, 18)) == ("0", "cierra hoy", True)
+    assert modalidad_corta("Compra Directa con Oferta Electrónica (Art. 43 LCE Inciso b)") == (
+        "Compra directa"
+    )
+    assert modalidad_corta("Procedimientos regulados por el artículo 54 LCE") == ""
+    assert a_favor("a favor: computadora, pantalla · en contra: frijol") == "computadora, pantalla"
+    assert a_favor("a favor: — · en contra: frijol") == ""
+
+
+def test_lista_guardada_y_decision(con):
+    from datetime import date
+
+    from src.producto.app import decidir, dias_disponibles, lista_guardada
+
+    con_lote = con
+    con_lote.execute(
+        "INSERT INTO procesos (ocid, nog, titulo, fecha_publicacion) VALUES ('a', '1', 'A', ?)",
+        [datetime(2026, 10, 9, 8)],
+    )
+    con_lote.execute(
+        "INSERT INTO predicciones (ocid, fecha_corrida, score, rango, seccion) "
+        "VALUES ('a', '2026-10-09', 0.9, 1, 'principal')"
+    )
+    assert dias_disponibles(con_lote) == [
+        {"dia": date(2026, 10, 9), "recomendados": 1, "publicados": 1}
+    ]
+    decidir(con_lote, "a", "no_aplica")
+    decidir(con_lote, "a", "me_interesa")
+    assert lista_guardada(con_lote, date(2026, 10, 9))[0]["decision"] == "me_interesa"

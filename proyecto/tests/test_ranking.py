@@ -177,3 +177,51 @@ def test_tope_de_computadoras_en_el_combinado():
         .sum()
         == 8
     )
+
+
+def test_candidatos_sin_cierre_solo_en_la_lista_diaria(con):
+    agregar(con, "ok", datetime(2026, 2, 3, 9), datetime(2026, 2, 13))
+    agregar(con, "sin-cierre", datetime(2026, 2, 3, 10), None)
+    agregar(con, "cerrado", datetime(2026, 2, 3, 11), datetime(2026, 2, 3, 8))
+    assert candidatos(con, date(2026, 2, 3))["ocid"].tolist() == ["ok"]
+    assert candidatos(con, date(2026, 2, 3), sin_cierre=True)["ocid"].tolist() == [
+        "ok",
+        "sin-cierre",
+    ]
+
+
+def test_venta_computo_reconoce_plurales_y_deja_fuera_servidores():
+    from src.modelo.ranking import es_venta_computo
+
+    datos = pd.DataFrame(
+        {
+            "titulo": [
+                "La Subgerencia solicita 4 Computadoras de escritorio",
+                "COMPRA DE COMPUTADORES PORTÁTILES",
+                "Adquisición de estaciones de trabajo",
+                "Servidor de almacenamiento",
+                "Desarrollo de sistema web",
+            ],
+            "unspsc": ["", "", "", "43211501", ""],
+        }
+    )
+    assert es_venta_computo(datos).tolist() == [True, True, True, False, False]
+
+
+def test_lista_del_dia_umbral_y_seccion_de_computo():
+    from src.modelo.ranking import lista_del_dia
+
+    titulos = [f"Compra de {i} computadoras" for i in range(8)] + ["Sistema web", "Frijol"]
+    puntuados = pd.DataFrame(
+        {
+            "ocid": [f"p-{i}" for i in range(10)],
+            "titulo": titulos,
+            "unspsc": [""] * 10,
+            "clasificador": [0.9] * 9 + [0.1],
+            "combinado": np.linspace(1, 0.1, 10),
+        }
+    )
+    lista = lista_del_dia(puntuados)
+    principal = lista[lista["seccion"] == "principal"]
+    assert len(principal) == 6  # 5 de cómputo + el sistema web; el frijol no pasa el umbral
+    assert lista[lista["seccion"] == "computo"]["ocid"].tolist() == ["p-5", "p-6", "p-7"]

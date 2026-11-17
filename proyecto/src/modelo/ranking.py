@@ -31,13 +31,23 @@ CATEGORIA = re.compile(r"^(?:43|8111)")
 METODOS = ["palabra_clave", "categoria", "clasificador", "similitud", "combinado"]
 
 
-def candidatos(con: duckdb.DuckDBPyConnection, dia: date) -> pd.DataFrame:
-    """Publicados ese día y con el periodo de ofertas abierto; sin fecha de cierre no entran."""
+def candidatos(con: duckdb.DuckDBPyConnection, dia: date, sin_cierre: bool = False) -> pd.DataFrame:
+    """Publicados ese día y con el periodo de ofertas abierto.
+
+    El OCDS completa la fecha de cierre días después de publicar (H-13), así que la lista diaria
+    usa sin_cierre=True y deja entrar los que todavía no la tienen (D-18). La evaluación se midió
+    sin ellos (el valor por defecto) y así se mantiene.
+    """
+    vigencia = (
+        "(fecha_cierre IS NULL OR fecha_cierre > fecha_publicacion)"
+        if sin_cierre
+        else ("fecha_cierre > fecha_publicacion")
+    )
     ocids = [
         f[0]
         for f in con.execute(
             "SELECT ocid FROM procesos WHERE fecha_publicacion >= ? AND fecha_publicacion < ? "
-            "AND fecha_cierre > fecha_publicacion",
+            f"AND {vigencia}",
             [dia, dia + timedelta(days=1)],
         ).fetchall()
     ]
@@ -93,7 +103,7 @@ def puntajes(
 # Venta de computadoras: título con el equipo o UNSPSC de la familia 432115 (computadores),
 # sin 43211501 (servidores), que no cuentan para el tope
 COMPUTO = re.compile(
-    r"\b(?:computadora|computador|portatil(?:es)?|laptops?|estacion(?:es)? de trabajo|cpu"
+    r"\b(?:computador(?:a|as|es)?|portatil(?:es)?|laptops?|estacion(?:es)? de trabajo|cpus?"
     r"|unidad(?:es)? de procesamiento|todo en uno|all in one)\b"
 )
 UNSPSC_COMPUTO = re.compile(r"(?:^|,)432115(?!01)")
@@ -153,33 +163,59 @@ def explicar(modelo: Pipeline, puntuados: pd.DataFrame) -> list[str]:
     return [formato_terminos(f, c) for f, c in terminos(modelo, puntuados["texto_tfidf"].tolist())]
 
 
+def lista_del_dia(puntuados: pd.DataFrame, n: int = TOP, p_minima: float = 0.5) -> pd.DataFrame:
+    """Lo que ve ALBRAN (D-17): el top con tope de cómputo y, aparte, las demás computadoras.
+
+    Solo entran los que el clasificador considera relevantes (P ≥ p_minima, D-18): un día sin
+    nada relevante da una lista corta o vacía en vez de rellenar con lo que haya. La sección
+    'computo' trae las ventas de cómputo que el tope dejó fuera, en el orden del combinado.
+    """
+    puntuados = puntuados[puntuados["clasificador"] >= p_minima]
+    principal = top(puntuados, "combinado", n).assign(seccion="principal")
+    resto = puntuados[~puntuados["ocid"].isin(principal["ocid"])]
+    resto = resto[es_venta_computo(resto)]
+    computo = resto.sort_values(["combinado", "ocid"], ascending=[False, True])
+    return pd.concat([principal, computo.assign(seccion="computo")], ignore_index=True)
+
+
 def guardar_predicciones(
     con: duckdb.DuckDBPyConnection,
     dia: date,
-    seleccion: pd.DataFrame,
+    lista: pd.DataFrame,
     modelo: Pipeline,
     version: str,
 ) -> None:
-    """Escribe el top del score combinado en `predicciones`; repetir el día lo reemplaza."""
-    filas = seleccion.assign(
+    """Escribe la lista del día en `predicciones`; repetir el día la reemplaza."""
+    filas = lista.assign(
         fecha_corrida=dia,
         version_modelo=version,
-        terminos_top=explicar(modelo, seleccion),
-        rango=range(1, len(seleccion) + 1),
+        terminos_top=explicar(modelo, lista),
+        rango=range(1, len(lista) + 1),
     )
-    con.execute(
-        "DELETE FROM predicciones WHERE fecha_corrida = ? AND version_modelo = ?", [dia, version]
-    )
+    con.execute("DELETE FROM predicciones WHERE fecha_corrida = ?", [dia])
     con.register("_pred", filas)
     con.execute(
         """
         INSERT INTO predicciones
         SELECT ocid, fecha_corrida, version_modelo, clasificador, similitud, proyecto_similar,
-               combinado, terminos_top, rango
+               combinado, terminos_top, rango, seccion
         FROM _pred
         """
     )
     con.unregister("_pred")
+
+
+def dias_con_datos(con: duckdb.DuckDBPyConnection, hasta: date, n: int) -> list[date]:
+    """Los últimos n días hábiles con procesos publicados, hasta la fecha dada inclusive."""
+    filas = con.execute(
+        """
+        SELECT DISTINCT fecha_publicacion::DATE AS dia FROM procesos
+        WHERE fecha_publicacion < ? AND dayofweek(fecha_publicacion) BETWEEN 1 AND 5
+        ORDER BY dia DESC LIMIT ?
+        """,
+        [hasta + timedelta(days=1), n],
+    ).fetchall()
+    return sorted(f[0] for f in filas)
 
 
 def alfa_validacion(
@@ -203,3 +239,51 @@ def alfa_validacion(
     proyectos, emb_portafolio = portafolio
     sim, _ = similitud(embeber(datos["texto_embedding"]), proyectos, emb_portafolio)
     return ajustar_alfa(puntuar(modelo, datos["texto_tfidf"]), sim, datos["y"].astype(int).values)
+
+
+def main() -> None:
+    """Genera la lista de los últimos días (por defecto, la semana que termina en el último dato).
+
+    Simula la corrida diaria día por día: solo inferencia, sin reentrenar.
+
+        python -m src.modelo.ranking               # últimos 5 días hábiles con datos
+        python -m src.modelo.ranking --hasta 2026-10-26 --dias 5
+    """
+    import argparse
+
+    from src.db import conectar
+    from src.modelo.clasificador import cargar
+    from src.modelo.similitud import cargar_portafolio
+
+    p = argparse.ArgumentParser()
+    p.add_argument("--hasta", type=date.fromisoformat)
+    p.add_argument("--dias", type=int, default=5)
+    args = p.parse_args()
+
+    modelo, version = cargar()
+    portafolio = cargar_portafolio()
+    con = conectar()
+    try:
+        # Se guardan solo los días de esta corrida; las listas anteriores se borran
+        con.execute("DELETE FROM predicciones")
+        hasta = (
+            args.hasta
+            or con.execute("SELECT max(fecha_publicacion)::DATE FROM procesos").fetchall()[0][0]
+        )
+        alfa, auc = alfa_validacion(con, modelo, portafolio)
+        print(f"Modelo {version} · α = {alfa} (AUC-PR en validación {auc:.3f})")
+        for dia in dias_con_datos(con, hasta, args.dias):
+            datos = candidatos(con, dia, sin_cierre=True)
+            lista = lista_del_dia(puntajes(datos, modelo, alfa, portafolio))
+            guardar_predicciones(con, dia, lista, modelo, f"{version}-a{alfa}")
+            extra = (lista["seccion"] == "computo").sum()
+            print(
+                f"{dia:%a %d/%m}: {len(datos)} candidatos, {len(lista) - extra} en la lista y "
+                f"{extra} de cómputo aparte"
+            )
+    finally:
+        con.close()
+
+
+if __name__ == "__main__":
+    main()

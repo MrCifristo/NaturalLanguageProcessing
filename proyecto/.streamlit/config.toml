@@ -1,0 +1,17 @@
+# Paleta de la presentación (docs/01, sección 7)
+[theme]
+base = "light"
+primaryColor = "#5543D1"
+backgroundColor = "#F3F2EE"
+secondaryBackgroundColor = "#E9E7E1"
+textColor = "#1E2329"
+
+[server]
+# Solo en esta máquina; el panel no se publica en la red
+address = "localhost"
+
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false

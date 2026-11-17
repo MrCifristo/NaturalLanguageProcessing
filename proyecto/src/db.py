@@ -54,8 +54,11 @@ CREATE TABLE IF NOT EXISTS predicciones (
     proyecto_similar   VARCHAR,
     score              DOUBLE,
     terminos_top       VARCHAR,
-    rango              INTEGER
+    rango              INTEGER,
+    seccion            VARCHAR        -- 'principal' (top con tope) | 'computo' (las demás, D-17)
 );
+-- Bases creadas antes de D-17
+ALTER TABLE predicciones ADD COLUMN IF NOT EXISTS seccion VARCHAR;
 
 CREATE TABLE IF NOT EXISTS retroalimentacion (
     ocid               VARCHAR,

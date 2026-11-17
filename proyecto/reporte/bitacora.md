@@ -28,6 +28,8 @@ Registro de decisiones (D), hallazgos (H) y problemas (P) del proyecto final. Ma
 
 **H-12 · El criterio de relevancia sube la tasa de positivos (13/11/2026).** Al incluir hardware, la categoría UNSPSC 43 sola ya es el 2.0 % del periodo de entrenamiento (8,886 de 453,594), el doble del ~1 % que suponía el deck. Por eso la línea base por categoría será fuerte. El aporte del modelo está en lo relevante sin categoría TI (software fuera de 43, cableado y CCTV con categorías de construcción o seguridad) y en descartar el equipo médico con software (H-06).
 
+**H-13 · El OCDS completa la fecha de cierre días después de publicar (17/11/2026).** En los días más recientes de la carga casi ningún proceso trae fecha de cierre. El 26/10 se publicaron 1,310 procesos y solo 51 la tenían, y el 23/10, 63 de 1,426. Un mes antes, el 1/10, la tenían 1,290 de 1,583. O sea que el proceso aparece en el archivo del mes antes de que el portal complete su periodo de ofertas. Con la regla de `docs/03` (sin fecha de cierre, fuera del ranking) una corrida diaria real vería cerca del 5 % de lo publicado. Es el rezago que quedaba pendiente de medir en la Fase 1.
+
 ## Decisiones
 
 **D-01 · Proyecto dentro del repo del curso, con el `.venv` raíz.** Por la entrega de avances del 27/10 se usa `proyecto/` con el entorno compartido (Python 3.13) en vez de `uv` con Python 3.12. Se agregaron `duckdb`, `pyarrow` y `spacy` + `es_core_news_sm`.
@@ -61,6 +63,30 @@ Registro de decisiones (D), hallazgos (H) y problemas (P) del proyecto final. Ma
 **D-15 · Ciberseguridad, componentes por cantidad y soporte de terceros (17/11/2026).** Al etiquetar la prueba afinamos tres reglas y las aplicamos a los tres conjuntos para que no se contradigan. La primera es que las licencias de ciberseguridad de red (firewall, WAF, protección de correo, monitoreo de eventos) son relevantes, porque detrás hay un servicio de ciberseguridad que ALBRAN puede dar. El antivirus de escritorio sigue siendo reventa de producto. Por eso pasamos a relevante los dos firewalls de la semilla y la protección de correo de validación. La segunda es que los componentes y accesorios sueltos (discos, monitores, fuentes de poder) solo cuentan desde 10 unidades, y si el proceso no dice la cantidad no cuentan. Los «35 SSD», los «10 discos externos de 18 TB» y los «22 monitores» quedan como relevantes, y las impresoras siguen fuera aunque vengan como «equipo de cómputo». La tercera es que la renovación del soporte de un producto de terceros sigue sin ser relevante, así que dos procesos de prueba pasaron a no relevante. Quedan 41 relevantes en la semilla, 52 en validación y 52 en prueba.
 
 **D-16 · Portafolio y tope de 5 computadoras en la lista del día (17/11/2026).** El portafolio tiene siete filas, que son los cinco proyectos de ALBRAN, la línea de modernización y consultoría y una fila de venta de cómputo. Sin esa última, la similitud no tenía con qué comparar una compra de computadoras y su top 10 se llenaba de escritorios, mochilas y un arrendamiento de vehículo. Con el portafolio, α quedó en 0.65 y el combinado da un AUC-PR de 0.972 en validación, contra 0.961 del clasificador solo. Además, como casi todo lo relevante son compras de computadoras, la lista del día lleva como máximo cinco, y los lugares que sobran pasan a los siguientes por score. Una venta de cómputo se reconoce por el título (computadora, portátil, estación de trabajo, CPU) o por la familia UNSPSC 432115 sin los servidores. El tope se aplica solo al combinado, que es lo que ve ALBRAN. Las líneas base, el clasificador y la similitud se comparan sin tope. El costo es que la precisión@10 del combinado puede bajar, porque esos lugares los ocupan procesos con menos score, y por eso en la evaluación lo reportamos con tope y sin tope.
+
+**D-17 · Tope de cómputo como decisión de negocio y lista en dos secciones (17/11/2026).** La venta de computadoras no es una operación clave de ALBRAN, que se dedica al software a medida, los productos SaaS y la consultoría de infraestructura. Aun así la incluimos en el criterio (D-12) porque es una oportunidad de negocio interesante. El problema es que es lo que más se publica, y sin tope llena la lista del día y tapa lo que sí es el centro de ALBRAN.
+
+En la prueba el tope de 5 baja la precisión@10 del combinado de 0.95 a 0.80, o sea 1.5 recomendaciones útiles menos por día. El costo no es parejo, porque el 4/3 había solo 5 computadoras y no cambió nada, mientras que los días con 10 computadoras perdimos 2 o 3 aciertos. Además son 4 días y 40 posiciones, así que la diferencia es ruidosa. La métrica cuenta igual una computadora más que un firewall de data center, pero para ALBRAN no valen lo mismo. Las computadoras son el negocio más comoditizado, se compite por precio y el margen es bajo. De los 13 procesos que entraron gracias al tope, 7 eran relevantes y casi todos de infraestructura y ciberseguridad (firewalls, switch core, WAF, 35 SSD y la validación de la base de datos de un portal). Los otros 6 eran ruido, como licencias de Zoom, escritorios y servicio de internet.
+
+Por eso no elegimos entre con tope y sin tope. La lista principal es el top 10 con tope, y debajo va una sección plegable con las demás compras de cómputo del día ordenadas por score. Así no se pierde ninguna oportunidad, solo cambia el orden en que ALBRAN las ve.
+
+El número del tope sigue abierto. Esta tabla sale de los 4 días de prueba con el combinado (α = 0.65).
+
+| Tope | Precisión@10 | Cómputo por día | Relevantes que no son cómputo, por día | Procesos sin etiqueta |
+|---|---|---|---|---|
+| 0 | 0.33 | 0 | 3.25 | 16 |
+| 2 | 0.53 | 2 | 3.25 | 10 |
+| 3 | 0.63 | 3 | 3.25 | 6 |
+| 4 | 0.73 | 4 | 3.25 | 2 |
+| 5 | 0.80 | 5 | 3.00 | 0 |
+| 6 | 0.80 | 5.75 | 2.25 | 0 |
+| 7 | 0.85 | 6.5 | 2.00 | 0 |
+| 8 | 0.90 | 7.25 | 1.75 | 0 |
+| sin tope | 0.95 | 8.25 | 1.25 | 0 |
+
+Lo que más importa es la cuarta columna. Los relevantes que no son cómputo se quedan en unos 3 por día aunque bajemos el tope, ya que no hay más que eso en lo publicado cada día. Bajar de 5 no trae más oportunidades de software o infraestructura, solo cambia computadoras por ruido. Subir de 5 sí empieza a tapar esas oportunidades (de 3.0 a 1.25 por día). Con estos datos 5 queda cerca del punto de equilibrio. Ojo que con topes menores a 5 entran procesos que nadie etiquetó y cuentan como no relevantes, así que su precisión@10 puede estar algo subestimada. La decisión final depende de cuánto le interese a ALBRAN la venta de cómputo frente a su negocio central, y conviene revisarla con el uso real del panel.
+
+**D-18 · Lista diaria con procesos sin fecha de cierre y con umbral (17/11/2026).** Por H-13, la lista diaria deja entrar los procesos que todavía no tienen fecha de cierre, y el panel los muestra como «sin fecha de cierre». La evaluación del notebook 03 se midió con la regla anterior y así queda, para no invalidar las etiquetas de prueba. Además, la lista solo incluye procesos con P(relevante) ≥ 0.5. Si un día no hay nada relevante sale una lista corta o vacía, en vez de rellenar el top 10 con recargas telefónicas o trajes formales como pasó en la primera prueba del panel. El panel muestra la semana del 5 al 9 de octubre de 2026, que es la última con datos completos, generada día por día con `python -m src.modelo.ranking --hasta 2026-10-09`. Al revisar el panel encontramos que la expresión de cómputo no reconocía plurales («computadoras»), así que el tope dejaba pasar 6. En los días de prueba esas compras ya se detectaban por la categoría UNSPSC, así que los resultados del notebook 03 no cambiaron.
 
 ## Problemas
 

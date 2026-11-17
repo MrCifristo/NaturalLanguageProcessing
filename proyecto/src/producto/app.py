@@ -1,14 +1,16 @@
-"""Panel del radar. Por ahora solo la vista de etiquetado.
+"""Panel del radar: recomendaciones de la semana y vista de etiquetado.
 
     ../.venv/bin/streamlit run src/producto/app.py
 
-La propuesta del modelo (P y términos) se muestra solo en las rondas de entrenamiento que la
-traen; validación, prueba y la semilla se etiquetan a ciegas (regla de anclaje, D-08).
+Las recomendaciones salen de `predicciones`, que llena `python -m src.modelo.ranking`.
+La propuesta del modelo (P y términos) en el etiquetado se muestra solo en las rondas de
+entrenamiento que la traen; validación, prueba y la semilla van a ciegas (anclaje, D-08).
 """
 
+import html
 import re
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import duckdb
@@ -93,6 +95,8 @@ def nombre_lote(conjunto: str, ronda: int | None) -> str:
 def vista_etiquetado() -> None:
     import streamlit as st
 
+    st.markdown(ESTILO, unsafe_allow_html=True)
+    cabecera(st, "Etiquetado")
     st.session_state.setdefault("saltados", [])
     st.session_state.setdefault("ultimo", None)
 
@@ -165,11 +169,310 @@ def vista_etiquetado() -> None:
         con.close()
 
 
+# --- Recomendaciones ---------------------------------------------------------------------
+
+DIAS_SEMANA = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+MESES = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+]  # fmt: skip
+DECISIONES = {"me_interesa": "Marcaste: me interesa", "no_aplica": "Marcaste: no aplica"}
+
+
+def dias_disponibles(con: duckdb.DuckDBPyConnection) -> list[dict]:
+    """Días con lista guardada, del más reciente al más viejo, con lo publicado ese día."""
+    filas = con.execute(
+        """
+        SELECT pr.fecha_corrida,
+               count(*) FILTER (WHERE pr.seccion = 'principal') AS recomendados,
+               (SELECT count(*) FROM procesos p
+                WHERE p.fecha_publicacion::DATE = pr.fecha_corrida) AS publicados
+        FROM predicciones pr GROUP BY pr.fecha_corrida ORDER BY pr.fecha_corrida DESC
+        """
+    ).fetchall()
+    return [dict(zip(("dia", "recomendados", "publicados"), f, strict=True)) for f in filas]
+
+
+def lista_guardada(con: duckdb.DuckDBPyConnection, dia: date) -> list[dict]:
+    """La lista del día con los datos del proceso y la última decisión de ALBRAN."""
+    cur = con.execute(
+        """
+        SELECT pr.ocid, pr.seccion, pr.rango, pr.score, pr.p_relevante, pr.similitud_max,
+               pr.proyecto_similar, pr.terminos_top, p.nog, p.titulo, p.entidad, p.modalidad,
+               p.fecha_cierre,
+               (SELECT r.decision FROM retroalimentacion r WHERE r.ocid = pr.ocid
+                ORDER BY r.fecha DESC LIMIT 1) AS decision
+        FROM predicciones pr JOIN procesos p USING (ocid)
+        WHERE pr.fecha_corrida = ? ORDER BY pr.rango
+        """,
+        [dia],
+    )
+    nombres = [d[0] for d in cur.description]
+    return [dict(zip(nombres, f, strict=True)) for f in cur.fetchall()]
+
+
+def decidir(con: duckdb.DuckDBPyConnection, ocid: str, decision: str) -> None:
+    """Guarda la decisión de ALBRAN; la última es la que vale."""
+    con.execute("INSERT INTO retroalimentacion VALUES (?, ?, ?)", [ocid, datetime.now(), decision])
+
+
+# Palabras que nunca son siglas aunque tengan pocas vocales («DE», «LA», «EN»)
+MINUSCULAS = set(
+    "a al con de del e el en la las lo los o para por que se sin su sus u un una y".split()
+)
+# Siglas que se dejan en mayúsculas. Una lista y no una regla: «SON», «SAN», «DOS» o «RED»
+# tienen la misma forma que «IGSS» o «CPU».
+SIGLAS = set(
+    """IGSS MSPAS SAT INE INDE MAGA MINFIN MP PNC OJ TSE RENAP CHN USAC SIE SIAF LCE PPR NOG
+    CPU RAM SSD HDD USB LED LCD UPS NAS PC TI IA WAF VPN CCTV HDMI ERP POS GPS ISO SMS
+    API CRM BI QR IP TV DVD CD AS400 SQL""".split()
+)
+
+
+def _legible(texto: str | None, cada_palabra: bool) -> str:
+    """Pasa a minúsculas los textos del portal escritos en mayúsculas y respeta las siglas.
+
+    cada_palabra=True deja en mayúscula inicial cada palabra (nombres de entidades); si no, solo
+    la primera (títulos).
+    """
+    texto = re.sub(r"\s+", " ", limpiar(texto)).strip(" .;")
+    if not cada_palabra:  # «-COMPRA DIRECTA-» en títulos; en entidades el guion cierra la sigla
+        texto = texto.strip(" -")
+    letras = [c for c in texto if c.isalpha()]
+    if not letras or sum(c.isupper() for c in letras) / len(letras) < 0.6:
+        return texto
+
+    def palabra(p: str, primera: bool) -> str:
+        minuscula = p.lower()
+        es_conector = re.sub(r"[^a-záéíóúñ]", "", minuscula) in MINUSCULAS
+        if re.sub(r"[^A-Z0-9]", "", p) in SIGLAS and p.upper() == p:
+            return p
+        # Siglas entre guiones al final del nombre de una entidad («-INDE-», «-CDAG-»)
+        if re.fullmatch(r"-[A-ZÁÉÍÓÚÑ]{2,8}-?", p):
+            return p
+        if primera or (cada_palabra and not es_conector):
+            return minuscula[:1].upper() + minuscula[1:]
+        return minuscula
+
+    return " ".join(palabra(p, i == 0) for i, p in enumerate(texto.split(" ")))
+
+
+def titulo_legible(titulo: str | None, maximo: int = 150) -> str:
+    """Título en oración y cortado en una palabra completa si es muy largo."""
+    texto = _legible(titulo, cada_palabra=False)
+    if len(texto) <= maximo:
+        return texto
+    return texto[:maximo].rsplit(" ", 1)[0].rstrip(" ,;:(") + "…"
+
+
+def entidad_legible(entidad: str | None) -> str:
+    return _legible(entidad, cada_palabra=True)
+
+
+def fecha_larga(momento: date | datetime) -> str:
+    texto = f"{DIAS_SEMANA[momento.weekday()]} {momento.day} de {MESES[momento.month - 1]}"
+    if isinstance(momento, datetime) and (momento.hour or momento.minute):
+        texto += f" a las {momento:%H:%M}"
+    return texto
+
+
+def plazo(dia: date, cierre: datetime | None) -> tuple[str, str, bool]:
+    """(cifra, texto, urgente) del plazo para ofertar contado desde el día de la lista."""
+    if cierre is None:
+        return "—", "sin fecha de cierre", False
+    dias = (cierre.date() - dia).days
+    if dias <= 0:
+        return "0", "cierra hoy", True
+    return str(dias), "día para ofertar" if dias == 1 else "días para ofertar", dias <= 3
+
+
+def a_favor(terminos: str | None) -> str:
+    """Los términos a favor de `formato_terminos` («a favor: x, y · en contra: z»)."""
+    m = re.match(r"a favor: (.*?) · en contra", terminos or "")
+    return "" if not m or m.group(1) == "—" else m.group(1)
+
+
+def modalidad_corta(modalidad: str | None) -> str:
+    """Nombre corto de la modalidad; las que solo citan un artículo de la ley no se muestran."""
+    texto = (modalidad or "").lower()
+    for clave, nombre in [
+        ("compra directa", "Compra directa"),
+        ("licitaci", "Licitación"),
+        ("cotizaci", "Cotización"),
+        ("subasta", "Subasta electrónica"),
+        ("arrendamiento", "Arrendamiento"),
+        ("contrato abierto", "Contrato abierto"),
+    ]:
+        if clave in texto:
+            return nombre
+    return ""
+
+
+ESTILO = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+.stApp, .stApp p, .stApp h1, .stApp button p, .stApp label, .stApp summary p {
+  font-family: 'IBM Plex Sans', sans-serif; }
+.block-container { max-width: 1040px; padding-top: 2.2rem; }
+h1.radar { font-size: 1.55rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 .2rem; }
+p.resumen { color: #5C636B; font-size: .98rem; max-width: 62ch; margin: .2rem 0 1.4rem; }
+.plazo { line-height: 1; padding-top: .15rem; }
+.plazo .cifra { display: block; font-size: 2.6rem; font-weight: 600; color: #1E2329;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+.plazo .texto { display: block; font-size: .78rem; color: #5C636B; margin-top: .35rem; max-width: 10ch; }
+.marca { font-size: .9rem; font-weight: 600; color: #1E2329; letter-spacing: -0.005em; padding: .45rem 0 .9rem; }
+.marca span { color: #5C636B; font-weight: 400; }
+.plazo.urgente .cifra { color: #5543D1; }
+.plazo.urgente .texto { color: #5543D1; font-weight: 500; }
+a.titulo { color: #1E2329; font-size: 1.05rem; font-weight: 500; line-height: 1.35;
+  text-decoration: none; }
+a.titulo:hover { text-decoration: underline; text-decoration-color: #5543D1; text-underline-offset: 3px; }
+a.titulo:focus-visible { outline: 2px solid #5543D1; outline-offset: 2px; }
+p.entidad { color: #5C636B; font-size: .9rem; margin: .25rem 0 .55rem; }
+p.porque { font-size: .9rem; margin: 0 0 .2rem; max-width: 72ch; }
+p.porque b { font-weight: 500; }
+p.cierre { color: #5C636B; font-size: .82rem; margin: 0; }
+p.decision { font-size: .85rem; color: #5543D1; font-weight: 500; margin: .3rem 0 0; }
+hr.fila { border: none; border-top: 1px solid #DEDBD3; margin: 1.1rem 0; }
+.extra a { color: #1E2329; }
+.extra p { margin: 0 0 .7rem; font-size: .92rem; }
+.extra span { color: #5C636B; font-size: .84rem; }
+</style>
+"""
+
+
+def fila_recomendacion(st, con, dia: date, rec: dict) -> None:
+    cifra, texto, urgente = plazo(dia, rec["fecha_cierre"])
+    url = URL_CONCURSO.format(nog=rec["nog"])
+    terminos = a_favor(rec["terminos_top"])
+    porque = f"Se parece a <b>{html.escape(rec['proyecto_similar'] or '')}</b>."
+    if terminos:
+        porque += f" Palabras que más pesaron: {html.escape(terminos)}."
+    cierre = f"Cierra el {fecha_larga(rec['fecha_cierre'])}." if rec["fecha_cierre"] else ""
+    modalidad = modalidad_corta(rec["modalidad"])
+
+    izq, centro, der = st.columns([1.05, 6.6, 1.9], gap="medium")
+    izq.markdown(
+        f'<div class="plazo{" urgente" if urgente else ""}"><span class="cifra">{cifra}</span>'
+        f'<span class="texto">{texto}</span></div>',
+        unsafe_allow_html=True,
+    )
+    centro.markdown(
+        f'<a class="titulo" href="{url}" target="_blank" rel="noopener">'
+        f"{html.escape(titulo_legible(rec['titulo']))}</a>"
+        f'<p class="entidad">{html.escape(entidad_legible(rec["entidad"]))}</p>'
+        f'<p class="porque">{porque}</p>'
+        f'<p class="cierre">{" ".join(x for x in (f"{modalidad}." if modalidad else "", cierre) if x)}</p>',
+        unsafe_allow_html=True,
+    )
+    with der:
+        if der.button("Me interesa", key=f"si-{rec['ocid']}", width="stretch"):
+            decidir(con, rec["ocid"], "me_interesa")
+            st.rerun()
+        if der.button("No aplica", key=f"no-{rec['ocid']}", width="stretch"):
+            decidir(con, rec["ocid"], "no_aplica")
+            st.rerun()
+        if rec["decision"]:
+            der.markdown(
+                f'<p class="decision">{DECISIONES[rec["decision"]]}</p>', unsafe_allow_html=True
+            )
+
+
+def vista_recomendaciones() -> None:
+    import streamlit as st
+
+    st.markdown(ESTILO, unsafe_allow_html=True)
+    cabecera(st, "Recomendaciones")
+    con = conectar()
+    try:
+        dias = dias_disponibles(con)
+        if not dias:
+            st.markdown('<h1 class="radar">Recomendaciones</h1>', unsafe_allow_html=True)
+            st.info(
+                "Todavía no hay listas guardadas. Generalas con "
+                "`python -m src.modelo.ranking --hasta AAAA-MM-DD`."
+            )
+            return
+        por_dia = {d["dia"]: d for d in dias}
+        dia = (
+            st.segmented_control(
+                "Día",
+                list(por_dia),
+                default=dias[0]["dia"],
+                format_func=lambda d: f"{DIAS_SEMANA[d.weekday()][:3]} {d.day}/{d.month}",
+                label_visibility="collapsed",
+                key="dia",
+            )
+            or dias[0]["dia"]
+        )
+        info = por_dia[dia]
+        lista = lista_guardada(con, dia)
+        principal = [r for r in lista if r["seccion"] == "principal"]
+        computo = [r for r in lista if r["seccion"] == "computo"]
+
+        publicados = f"{info['publicados']:,}".replace(",", "\u202f")  # miles con espacio fino
+        st.markdown(
+            f'<h1 class="radar">Concursos para el {fecha_larga(dia)}</h1>'
+            f'<p class="resumen">Ese día se publicaron {publicados} procesos en Guatecompras. '
+            + (
+                f"Estos son los {len(principal)} que más se parecen a lo que hace ALBRAN, con "
+                "el plazo que queda para ofertar.</p>"
+                if principal
+                else "</p>"
+            ),
+            unsafe_allow_html=True,
+        )
+        if not principal:
+            st.markdown(
+                '<p class="resumen">Ese día no hubo concursos que el modelo considere '
+                "relevantes para ALBRAN.</p>",
+                unsafe_allow_html=True,
+            )
+        for i, rec in enumerate(principal):
+            if i:
+                st.markdown('<hr class="fila">', unsafe_allow_html=True)
+            fila_recomendacion(st, con, dia, rec)
+
+        if computo:
+            st.markdown('<hr class="fila">', unsafe_allow_html=True)
+            with st.expander(f"Otras {len(computo)} compras de computadoras de ese día"):
+                partes = []
+                for rec in computo:
+                    cifra, texto, _ = plazo(dia, rec["fecha_cierre"])
+                    cuando = f"{cifra} {texto}" if cifra != "—" else texto
+                    partes.append(
+                        f'<p><a href="{URL_CONCURSO.format(nog=rec["nog"])}" target="_blank" '
+                        f'rel="noopener">{html.escape(titulo_legible(rec["titulo"]))}</a><br>'
+                        f"<span>{html.escape(entidad_legible(rec['entidad']))}, {cuando}</span></p>"
+                    )
+                st.markdown(f'<div class="extra">{"".join(partes)}</div>', unsafe_allow_html=True)
+    finally:
+        con.close()
+
+
+PAGINAS: dict = {}
+
+
+def cabecera(st, actual: str) -> None:
+    """Nombre del radar a la izquierda y el enlace a la otra vista a la derecha."""
+    marca, enlace = st.columns([5, 1.3], vertical_alignment="center")
+    marca.markdown(
+        '<div class="marca">Radar de Licitaciones <span>para ALBRAN Industries</span></div>',
+        unsafe_allow_html=True,
+    )
+    otra = "Etiquetado" if actual == "Recomendaciones" else "Recomendaciones"
+    enlace.page_link(PAGINAS[otra], label=otra)
+
+
 def main() -> None:
     import streamlit as st
 
     st.set_page_config(page_title="Radar de Licitaciones", layout="wide")
-    vista_etiquetado()
+    PAGINAS["Recomendaciones"] = st.Page(
+        vista_recomendaciones, title="Recomendaciones", default=True
+    )
+    PAGINAS["Etiquetado"] = st.Page(vista_etiquetado, title="Etiquetado", url_path="etiquetado")
+    st.navigation(list(PAGINAS.values()), position="hidden").run()
 
 
 if __name__ == "__main__":
