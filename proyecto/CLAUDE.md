@@ -99,7 +99,7 @@ Se trabaja **por partes**: cerrar una, reportar y pedir confirmación antes de l
 1. ~~Ruff en `pyproject.toml` y `requirements.txt` de la raíz~~ (hecho el 14/11; `ruff check src tests` pasa, el notebook 01 tiene 7 avisos pendientes).
 2. ~~Esquema de `etiquetas`~~ (hecho el 14/11; `src/db.py::migrar` recreó la tabla vacía; `ocid` es llave y `etiqueta_humana` NULL marca lo muestreado pendiente).
 3. ~~`src/etiquetado/muestreo.py`~~ (hecho el 14/11, D-11; 70/30 confirmado). Correr `../.venv/bin/python -m src.etiquetado.muestreo` con el kernel del notebook cerrado: DuckDB no deja escribir si otro proceso tiene la base abierta.
-4. Vista de etiquetado mínima en `src/producto/app.py`, con y sin propuesta según el lote.
+4. ~~Vista de etiquetado~~ (hecho el 14/11): `../.venv/bin/streamlit run src/producto/app.py`. Atajos 1/2/3/u; la propuesta solo aparece en rondas ≥ 1 de entrenamiento.
 5. ~~Embeddings del histórico~~: se calculan bajo demanda (D-10).
 6. Después: `activo.py`, clasificador, similitud, ranking, evaluación, `notificar.py` y simulación de la demo.
 
