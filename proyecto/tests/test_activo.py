@@ -194,3 +194,23 @@ def test_exportar_solo_etiquetadas(con_semilla, tmp_path):
     datos = pd.read_csv(ruta)
     assert "s-pos-0" not in set(datos["ocid"])
     assert datos["conjunto"].tolist() == sorted(datos["conjunto"])
+
+
+def test_importar_vuelve_a_cargar_lo_exportado(con_semilla, tmp_path):
+    from src.etiquetado.exportar import exportar, importar
+
+    ruta = tmp_path / "etiquetas.csv"
+    n = exportar(con_semilla, ruta)
+    antes = con_semilla.execute(
+        "SELECT ocid, conjunto, ronda, etiqueta_humana FROM etiquetas "
+        "WHERE etiqueta_humana IS NOT NULL ORDER BY ocid"
+    ).fetchall()
+    con_semilla.execute("DELETE FROM etiquetas")
+    assert importar(con_semilla, ruta) == (n, 0)
+    despues = con_semilla.execute(
+        "SELECT ocid, conjunto, ronda, etiqueta_humana FROM etiquetas ORDER BY ocid"
+    ).fetchall()
+    assert despues == antes
+    # Repetir no duplica y un ocid sin proceso se omite
+    con_semilla.execute("DELETE FROM procesos WHERE ocid = 's-pos-0'")
+    assert importar(con_semilla, ruta) == (n - 1, 1)

@@ -96,7 +96,7 @@ def vista_etiquetado() -> None:
     import streamlit as st
 
     st.markdown(ESTILO, unsafe_allow_html=True)
-    cabecera(st, "Etiquetado")
+    banda(st, "Etiquetado", "Etiquetado")
     st.session_state.setdefault("saltados", [])
     st.session_state.setdefault("ultimo", None)
 
@@ -310,38 +310,70 @@ def modalidad_corta(modalidad: str | None) -> str:
 ESTILO = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap');
-.stApp, .stApp p, .stApp h1, .stApp button p, .stApp label, .stApp summary p {
+.stApp, .stApp p, .stApp h1, .stApp h2, .stApp button p, .stApp label, .stApp summary p,
+.stApp a, .stApp span:not([data-testid="stIconMaterial"]) {
   font-family: 'IBM Plex Sans', sans-serif; }
-.block-container { max-width: 1040px; padding-top: 2.2rem; }
-h1.radar { font-size: 1.55rem; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 .2rem; }
-p.resumen { color: #5C636B; font-size: .98rem; max-width: 62ch; margin: .2rem 0 1.4rem; }
-.plazo { line-height: 1; padding-top: .15rem; }
-.plazo .cifra { display: block; font-size: 2.6rem; font-weight: 600; color: #1E2329;
+.stApp { background: #F3F2EE; overflow-x: hidden; }
+header[data-testid="stHeader"] { display: none; }
+.block-container, [data-testid="stMainBlockContainer"] { max-width: 1120px;
+  padding-top: 0 !important; padding-bottom: 4rem; }
+
+/* Banda oscura de arriba: fondo a todo el ancho con el truco de la sombra recortada */
+.banda { background: #14171B; color: #F3F2EE; box-shadow: 0 0 0 100vmax #14171B;
+  clip-path: inset(-100vmax -100vmax 0); padding: 26px 0 30px; margin-bottom: 30px; }
+.banda .arriba { display: flex; justify-content: space-between; align-items: baseline; }
+.banda .marca { font-size: .95rem; font-weight: 600; letter-spacing: -0.005em; }
+.banda .marca span { color: #8E959E; font-weight: 400; }
+.banda a.vista { color: #B4BBC4; font-size: .9rem; text-decoration: none; }
+.banda a.vista:hover { color: #F3F2EE; }
+.banda h1 { font-size: 1.9rem; font-weight: 600; letter-spacing: -0.02em; margin: 22px 0 18px;
+  color: #F3F2EE; }
+.dias { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+a.dia { display: block; background: #1E2329; border-radius: 10px; padding: 14px 16px;
+  text-decoration: none; color: #F3F2EE; border: 1px solid #2A3038; }
+a.dia:hover { border-color: #5C636B; }
+a.dia .nombre { font-size: .8rem; color: #8E959E; }
+a.dia .numero { font-size: 1.7rem; font-weight: 600; line-height: 1.1; margin: 2px 0 6px;
+  font-variant-numeric: tabular-nums; }
+a.dia .cuenta { font-size: .8rem; color: #B4BBC4; line-height: 1.35; }
+a.dia.activo { background: #9A8CFF; border-color: #9A8CFF; color: #14171B; }
+a.dia.activo .nombre, a.dia.activo .cuenta { color: #2B2470; }
+a.dia:focus-visible { outline: 2px solid #9A8CFF; outline-offset: 2px; }
+
+p.resumen { color: #4A4F57; font-size: 1rem; max-width: 70ch; margin: 0 0 6px; }
+p.resumen b { color: #1E2329; font-weight: 600; }
+
+/* Tarjeta de cada concurso */
+[class*="st-key-rec-"] { background: #FBFBF8; border: 1px solid #E2DFD7; border-radius: 14px;
+  padding: 20px 22px 16px; }
+.plazo { border-radius: 10px; padding: 14px 8px 12px; text-align: center; line-height: 1; }
+.plazo .cifra { display: block; font-size: 2.1rem; font-weight: 600;
   font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
-.plazo .texto { display: block; font-size: .78rem; color: #5C636B; margin-top: .35rem; max-width: 10ch; }
-.marca { font-size: .9rem; font-weight: 600; color: #1E2329; letter-spacing: -0.005em; padding: .45rem 0 .9rem; }
-.marca span { color: #5C636B; font-weight: 400; }
-.plazo.urgente .cifra { color: #5543D1; }
-.plazo.urgente .texto { color: #5543D1; font-weight: 500; }
-a.titulo { color: #1E2329; font-size: 1.05rem; font-weight: 500; line-height: 1.35;
-  text-decoration: none; }
-a.titulo:hover { text-decoration: underline; text-decoration-color: #5543D1; text-underline-offset: 3px; }
+.plazo .texto { display: block; font-size: .72rem; margin-top: 6px; line-height: 1.25; }
+.plazo.urgente { background: #5543D1; color: #F3F2EE; }
+.plazo.fecha { background: #E4E0FA; color: #2B2470; }
+.plazo.sin { background: #ECEAE4; color: #5C636B; }
+.cabeza { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+span.linea { background: #E4E0FA; color: #3B2FA0; font-size: .74rem; font-weight: 500;
+  padding: 3px 10px; border-radius: 999px; }
+span.linea.computo { background: #ECEAE4; color: #4A4F57; }
+span.entidad { color: #5C636B; font-size: .85rem; }
+a.titulo { color: #1E2329; font-size: 1.08rem; font-weight: 600; line-height: 1.35;
+  text-decoration: none; letter-spacing: -0.005em; }
+a.titulo:hover { color: #5543D1; }
 a.titulo:focus-visible { outline: 2px solid #5543D1; outline-offset: 2px; }
-p.entidad { color: #5C636B; font-size: .9rem; margin: .25rem 0 .55rem; }
-p.porque { font-size: .9rem; margin: 0 0 .2rem; max-width: 72ch; }
-p.porque b { font-weight: 500; }
+p.porque { font-size: .9rem; color: #2E333A; margin: 8px 0 4px; max-width: 78ch; }
+p.porque b { font-weight: 600; }
 p.porque i { font-style: normal; color: #5543D1; }
-p.cierre { color: #5C636B; font-size: .82rem; margin: 0; }
-/* Botones de decisión: compactos, para que no pesen más que el concurso */
-.stApp [data-testid="stHorizontalBlock"] .stButton button,
-.stApp [data-testid="stLayoutWrapper"] .stButton button {
-  min-height: 0; padding: .28rem .85rem; font-size: .84rem; border-radius: 6px; }
-hr.fila { border: none; border-top: 1px solid #DEDBD3; margin: 1.1rem 0; }
+p.cierre { color: #5C636B; font-size: .8rem; margin: 0; }
+[class*="st-key-rec-"] .stButton button { min-height: 0; padding: .25rem .9rem;
+  font-size: .82rem; border-radius: 999px; }
+
 .extra a { color: #1E2329; text-decoration: none; font-weight: 500; }
-.extra a:hover { text-decoration: underline; text-decoration-color: #5543D1; text-underline-offset: 3px; }
+.extra a:hover { color: #5543D1; }
 .extra p { margin: 0 0 .8rem; font-size: .92rem; line-height: 1.4; }
-p.resumen b { color: #1E2329; font-weight: 500; }
 .extra span { color: #5C636B; font-size: .84rem; }
+p.pie { color: #8A8F96; font-size: .78rem; margin-top: 2.5rem; }
 </style>
 """
 
@@ -374,107 +406,185 @@ def explicacion(rec: dict, lineas: dict[str, str]) -> str:
     return texto.strip()
 
 
-def fila_recomendacion(st, con, dia: date, rec: dict, lineas: dict[str, str]) -> None:
-    cifra, texto, urgente = plazo(dia, rec["fecha_cierre"])
+def clase_plazo(dia: date, cierre: datetime | None) -> str:
+    if cierre is None:
+        return "sin"
+    return "urgente" if plazo(dia, cierre)[2] else "fecha"
+
+
+def ordenar(lista: list[dict], criterio: str) -> list[dict]:
+    """Relevancia (el orden del ranking) o cierre más próximo; sin fecha van al final."""
+    if criterio == "Cierre más próximo":
+        return sorted(lista, key=lambda r: (r["fecha_cierre"] is None, r["fecha_cierre"] or 0))
+    return sorted(lista, key=lambda r: r["rango"])
+
+
+def banda(st, actual: str, titulo: str = "", dias_html: str = "") -> None:
+    """Cabecera oscura: el nombre, el enlace a la otra vista y, si se da, la semana."""
+    otra, ruta = (
+        ("Etiquetado", "etiquetado")
+        if actual == "Recomendaciones"
+        else (
+            "Recomendaciones",
+            "",
+        )
+    )
+    st.markdown(
+        '<div class="banda"><div class="arriba">'
+        '<div class="marca">Radar de Licitaciones <span>para ALBRAN Industries</span></div>'
+        f'<a class="vista" href="/{ruta}" target="_self">{otra}</a></div>'
+        + (f"<h1>{titulo}</h1>" if titulo else "")
+        + dias_html
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def tira_de_dias(dias: list[dict], elegido: date, urgentes: dict[date, int]) -> str:
+    tarjetas = []
+    for d in sorted(dias, key=lambda x: x["dia"]):
+        dia = d["dia"]
+        n = d["recomendados"]
+        cuenta = f"{n} en la lista" if n else "sin concursos"
+        if urgentes.get(dia):
+            n_urg = urgentes[dia]
+            cuenta += f"<br>{n_urg} {'cierra' if n_urg == 1 else 'cierran'} pronto"
+        tarjetas.append(
+            f'<a class="dia{" activo" if dia == elegido else ""}" href="?dia={dia:%Y-%m-%d}" '
+            f'target="_self"><div class="nombre">{DIAS_SEMANA[dia.weekday()]}</div>'
+            f'<div class="numero">{dia.day} {MESES[dia.month - 1][:3]}</div>'
+            f'<div class="cuenta">{cuenta}</div></a>'
+        )
+    return f'<div class="dias">{"".join(tarjetas)}</div>'
+
+
+def tarjeta(st, con, dia: date, rec: dict, lineas: dict[str, str]) -> None:
+    cifra, texto, _ = plazo(dia, rec["fecha_cierre"])
     url = URL_CONCURSO.format(nog=rec["nog"])
     cierre = f"Cierra el {fecha_larga(rec['fecha_cierre'])}." if rec["fecha_cierre"] else ""
     modalidad = modalidad_corta(rec["modalidad"])
     pie = " ".join(x for x in (f"{modalidad}." if modalidad else "", cierre) if x)
+    linea = lineas.get(rec["proyecto_similar"] or "", "")
+    clase_linea = "linea computo" if "cómputo" in linea else "linea"
 
-    izq, centro = st.columns([1, 8.2], gap="medium")
-    izq.markdown(
-        f'<div class="plazo{" urgente" if urgente else ""}"><span class="cifra">{cifra}</span>'
-        f'<span class="texto">{texto}</span></div>',
-        unsafe_allow_html=True,
-    )
-    centro.markdown(
-        f'<a class="titulo" href="{url}" target="_blank" rel="noopener">'
-        f"{html.escape(titulo_legible(rec['titulo']))}</a>"
-        f'<p class="entidad">{html.escape(entidad_legible(rec["entidad"]))}</p>'
-        f'<p class="porque">{explicacion(rec, lineas)}</p>'
-        f'<p class="cierre">{pie}</p>',
-        unsafe_allow_html=True,
-    )
-    # La decisión elegida queda resaltada; cambiarla guarda una nueva (vale la última)
-    with centro.container(horizontal=True, gap="small"):
-        for decision, etiqueta in (("me_interesa", "Me interesa"), ("no_aplica", "No aplica")):
-            elegido = rec["decision"] == decision
-            if (
-                st.button(
-                    etiqueta,
-                    key=f"{decision}-{rec['ocid']}",
-                    type="primary" if elegido else "secondary",
-                )
-                and not elegido
-            ):
-                decidir(con, rec["ocid"], decision)
-                st.rerun()
+    with st.container(key=f"rec-{rec['ocid']}"):
+        izq, centro = st.columns([1.05, 8], gap="medium")
+        izq.markdown(
+            f'<div class="plazo {clase_plazo(dia, rec["fecha_cierre"])}">'
+            f'<span class="cifra">{cifra}</span><span class="texto">{texto}</span></div>',
+            unsafe_allow_html=True,
+        )
+        with centro:
+            st.markdown(
+                '<div class="cabeza">'
+                + (f'<span class="{clase_linea}">{html.escape(linea)}</span>' if linea else "")
+                + f'<span class="entidad">{html.escape(entidad_legible(rec["entidad"]))}</span>'
+                "</div>"
+                f'<a class="titulo" href="{url}" target="_blank" rel="noopener">'
+                f"{html.escape(titulo_legible(rec['titulo']))}</a>"
+                f'<p class="porque">{explicacion(rec, lineas)}</p>'
+                f'<p class="cierre">{pie}</p>',
+                unsafe_allow_html=True,
+            )
+            # La decisión elegida queda resaltada; cambiarla guarda una nueva (vale la última)
+            with st.container(horizontal=True, gap="small"):
+                for decision, etiqueta in (
+                    ("me_interesa", "Me interesa"),
+                    ("no_aplica", "No aplica"),
+                ):
+                    elegido = rec["decision"] == decision
+                    pulsado = st.button(
+                        etiqueta,
+                        key=f"{decision}-{rec['ocid']}",
+                        type="primary" if elegido else "secondary",
+                    )
+                    if pulsado and not elegido:
+                        decidir(con, rec["ocid"], decision)
+                        st.rerun()
 
 
 def vista_recomendaciones() -> None:
     import streamlit as st
 
     st.markdown(ESTILO, unsafe_allow_html=True)
-    cabecera(st, "Recomendaciones")
     con = conectar()
     try:
         dias = dias_disponibles(con)
         if not dias:
-            st.markdown('<h1 class="radar">Recomendaciones</h1>', unsafe_allow_html=True)
+            banda(st, "Recomendaciones", "Recomendaciones")
             st.info(
                 "Todavía no hay listas guardadas. Generalas con "
                 "`python -m src.modelo.ranking --hasta AAAA-MM-DD`."
             )
             return
         por_dia = {d["dia"]: d for d in dias}
-        dia = (
-            st.segmented_control(
-                "Día",
-                list(por_dia),
-                default=dias[0]["dia"],
-                format_func=lambda d: f"{DIAS_SEMANA[d.weekday()][:3]} {d.day}/{d.month}",
-                label_visibility="collapsed",
-                key="dia",
-            )
-            or dias[0]["dia"]
-        )
-        info = por_dia[dia]
-        lista = lista_guardada(con, dia)
+        pedido = st.query_params.get("dia")
+        try:
+            dia = date.fromisoformat(pedido) if pedido else dias[0]["dia"]
+        except ValueError:
+            dia = dias[0]["dia"]
+        if dia not in por_dia:
+            dia = dias[0]["dia"]
+
+        listas = {d: lista_guardada(con, d) for d in por_dia}
+        urgentes = {
+            d: sum(r["seccion"] == "principal" and plazo(d, r["fecha_cierre"])[2] for r in lista)
+            for d, lista in listas.items()
+        }
+        lista = listas[dia]
         principal = [r for r in lista if r["seccion"] == "principal"]
         computo = [r for r in lista if r["seccion"] == "computo"]
+        lineas = lineas_de_negocio()
 
-        publicados = f"{info['publicados']:,}".replace(",", "\u202f")  # miles con espacio fino
-        urgentes = sum(plazo(dia, r["fecha_cierre"])[2] for r in principal)
-        resumen = f"Ese día se publicaron {publicados} procesos en Guatecompras."
+        primero, ultimo = min(por_dia), max(por_dia)
+        semana = (
+            f"Semana del {primero.day} al {ultimo.day} de {MESES[ultimo.month - 1]}"
+            if primero.month == ultimo.month
+            else f"Del {fecha_larga(primero)} al {fecha_larga(ultimo)}"
+        )
+        banda(st, "Recomendaciones", semana, tira_de_dias(dias, dia, urgentes))
+
+        publicados = f"{por_dia[dia]['publicados']:,}".replace(",", " ")
+        marcados = sum(r["decision"] is not None for r in principal)
+        resumen = (
+            f"El <b>{fecha_larga(dia)}</b> se publicaron {publicados} procesos en Guatecompras."
+        )
         if principal:
             resumen += (
-                f" Estos son los {len(principal)} que más se parecen a lo que hace ALBRAN,"
-                " con el plazo que queda para ofertar."
+                f" Estos son los {len(principal)} que más se parecen a lo que hace ALBRAN."
+                f" Ya decidiste {marcados} de {len(principal)}."
             )
-        if urgentes:
-            resumen += (
-                f" <b>{urgentes} {'cierra' if urgentes == 1 else 'cierran'} en tres días o"
-                " menos.</b>"
+        else:
+            resumen += " Ninguno parece relevante para ALBRAN."
+        st.markdown(f'<p class="resumen">{resumen}</p>', unsafe_allow_html=True)
+
+        if principal:
+            presentes = sorted(
+                {lineas.get(r["proyecto_similar"] or "", "") for r in principal} - {""}
             )
-        st.markdown(
-            f'<h1 class="radar">Concursos para el {fecha_larga(dia)}</h1>'
-            f'<p class="resumen">{resumen}</p>',
-            unsafe_allow_html=True,
-        )
-        lineas = lineas_de_negocio()
-        if not principal:
-            st.markdown(
-                '<p class="resumen">Ese día no hubo concursos que el modelo considere '
-                "relevantes para ALBRAN.</p>",
-                unsafe_allow_html=True,
+            elegidas = st.pills(
+                "Línea de negocio", presentes, selection_mode="multi", key=f"lineas-{dia}"
             )
-        for i, rec in enumerate(principal):
-            if i:
-                st.markdown('<hr class="fila">', unsafe_allow_html=True)
-            fila_recomendacion(st, con, dia, rec, lineas)
+            criterio = (
+                st.segmented_control(
+                    "Ordenar por",
+                    ["Relevancia", "Cierre más próximo"],
+                    default="Relevancia",
+                    key="orden",
+                )
+                or "Relevancia"
+            )
+            visibles = [
+                r
+                for r in ordenar(principal, criterio)
+                if not elegidas or lineas.get(r["proyecto_similar"] or "", "") in elegidas
+            ]
+            for rec in visibles:
+                tarjeta(st, con, dia, rec, lineas)
+            if not visibles:
+                st.caption("Ningún concurso de ese día es de las líneas elegidas.")
 
         if computo:
-            st.markdown('<hr class="fila">', unsafe_allow_html=True)
             with st.expander(f"Otras {len(computo)} compras de computadoras de ese día"):
                 partes = []
                 for rec in computo:
@@ -486,22 +596,17 @@ def vista_recomendaciones() -> None:
                         f"<span>{html.escape(entidad_legible(rec['entidad']))}, {cuando}</span></p>"
                     )
                 st.markdown(f'<div class="extra">{"".join(partes)}</div>', unsafe_allow_html=True)
+
+        st.markdown(
+            '<p class="pie">Datos abiertos del OCDS de Guatecompras, Ministerio de Finanzas '
+            "Públicas (CC BY 4.0). El título de cada concurso lleva a su página en el portal.</p>",
+            unsafe_allow_html=True,
+        )
     finally:
         con.close()
 
 
 PAGINAS: dict = {}
-
-
-def cabecera(st, actual: str) -> None:
-    """Nombre del radar a la izquierda y el enlace a la otra vista a la derecha."""
-    marca, enlace = st.columns([5, 1.3], vertical_alignment="center")
-    marca.markdown(
-        '<div class="marca">Radar de Licitaciones <span>para ALBRAN Industries</span></div>',
-        unsafe_allow_html=True,
-    )
-    otra = "Etiquetado" if actual == "Recomendaciones" else "Recomendaciones"
-    enlace.page_link(PAGINAS[otra], label=otra)
 
 
 def main() -> None:

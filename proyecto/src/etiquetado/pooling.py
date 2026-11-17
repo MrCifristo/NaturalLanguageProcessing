@@ -5,6 +5,7 @@ unión que no tengan etiqueta entran a `etiquetas` como conjunto 'prueba', orige
 sin propuesta (a ciegas). Así todos los métodos se comparan sobre el mismo conjunto etiquetado.
 
     python -m src.etiquetado.pooling              # 4 días al azar con semilla fija
+    python -m src.etiquetado.pooling --reglas-panel   # además, lo que mostraría el panel
 
 Es idempotente y acumulativo: sin portafolio corre los tres métodos que no lo necesitan; al
 volver a correrlo con el portafolio agrega solo lo que traen la similitud y el combinado.
@@ -18,7 +19,14 @@ import pandas as pd
 
 from src.db import conectar
 from src.modelo.clasificador import cargar
-from src.modelo.ranking import METODOS, alfa_validacion, candidatos, puntajes, top
+from src.modelo.ranking import (
+    METODOS,
+    alfa_validacion,
+    candidatos,
+    lista_del_dia,
+    puntajes,
+    top,
+)
 
 # Semana Santa 2026 (Domingo de Ramos a Domingo de Resurrección): volumen atípico
 SEMANA_SANTA = (date(2026, 3, 29), date(2026, 4, 5))
@@ -85,6 +93,11 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--dias", type=int, default=4)
     p.add_argument("--semilla", type=int, default=42)
+    p.add_argument(
+        "--reglas-panel",
+        action="store_true",
+        help="candidatos y lista como en el panel: sin fecha de cierre y con umbral (D-18)",
+    )
     args = p.parse_args()
 
     modelo, version = cargar()
@@ -105,7 +118,13 @@ def main() -> None:
         dias = elegir_dias(con, args.dias, args.semilla)
         print(f"Modelo {version} · días de prueba: {', '.join(f'{d:%a %d/%m/%Y}' for d in dias)}")
         for dia in dias:
-            tops = union_top(puntajes(candidatos(con, dia), modelo, alfa, portafolio))
+            puntuados = puntajes(
+                candidatos(con, dia, sin_cierre=args.reglas_panel), modelo, alfa, portafolio
+            )
+            tops = union_top(puntuados)
+            if args.reglas_panel and portafolio is not None:
+                lista = lista_del_dia(puntuados)
+                tops["panel"] = lista.loc[lista["seccion"] == "principal", "ocid"].tolist()
             union = {o for ocids in tops.values() for o in ocids}
             nuevos = insertar(con, list(union))
             detalle = " · ".join(f"{m} {len(o)}" for m, o in tops.items())
