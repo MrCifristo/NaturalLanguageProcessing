@@ -121,3 +121,36 @@ def para_tfidf(textos: list[str], batch_size: int = 2000) -> list[str]:
         ]
         salida.append(" ".join(lemas))
     return salida
+
+
+def poblar_textos(con, ocids: list[str]) -> int:
+    """Calcula y guarda texto_tfidf y texto_embedding de los ocids que aún no los tienen.
+
+    Bajo demanda (D-05, D-10): solo lo que se va a entrenar o puntuar. Devuelve cuántos calculó.
+    """
+    import pandas as pd
+
+    # Join con una tabla registrada: list_contains con decenas de miles de ocids es lento
+    con.register("_ocids_pedidos", pd.DataFrame({"ocid": list(ocids)}))
+    filas = con.execute(
+        "SELECT p.ocid, p.titulo, p.items_texto, p.caracteristicas "
+        "FROM procesos p JOIN _ocids_pedidos USING (ocid) WHERE p.texto_tfidf IS NULL"
+    ).fetchall()
+    con.unregister("_ocids_pedidos")
+    if not filas:
+        return 0
+    entradas = [texto_entrada(t or "", i, c) for _, t, i, c in filas]
+    nuevos = pd.DataFrame(
+        {
+            "ocid": [f[0] for f in filas],
+            "tfidf": para_tfidf(entradas),
+            "emb": [para_embedding(e) for e in entradas],
+        }
+    )
+    con.register("_nuevos_textos", nuevos)
+    con.execute(
+        "UPDATE procesos p SET texto_tfidf = n.tfidf, texto_embedding = n.emb "
+        "FROM _nuevos_textos n WHERE p.ocid = n.ocid"
+    )
+    con.unregister("_nuevos_textos")
+    return len(nuevos)

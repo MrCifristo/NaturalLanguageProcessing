@@ -79,12 +79,15 @@ def limpiar(texto: str | None) -> str:
     return re.sub(r"<br\s*/?>", "\n", texto or "").strip()
 
 
-def nombre_lote(lote: dict) -> str:
-    if lote["conjunto"] == "entrenamiento":
-        nombre = "Semilla" if lote["ronda"] == 0 else f"Ronda {lote['ronda']}"
-    else:
-        nombre = {"validacion": "Validación", "prueba": "Prueba"}[lote["conjunto"]]
-    return f"{nombre} · {lote['hechas']}/{lote['total']}"
+def nombre_lote(conjunto: str, ronda: int | None) -> str:
+    """Nombre fijo del lote, sin el avance.
+
+    st.radio guarda la opción elegida por su texto: si el texto incluyera «3/150», al etiquetar
+    pasaría a «4/150», la opción guardada dejaría de existir y el radio volvería al primer lote.
+    """
+    if conjunto == "entrenamiento":
+        return "Semilla" if ronda == 0 else f"Ronda {ronda}"
+    return {"validacion": "Validación", "prueba": "Prueba"}[conjunto]
 
 
 def vista_etiquetado() -> None:
@@ -104,10 +107,12 @@ def vista_etiquetado() -> None:
         # opción y Streamlit volvería al primer lote después de cada etiqueta
         por_clave = {(d["conjunto"], d["ronda"]): d for d in disponibles}
         clave = st.sidebar.radio(
-            "Lote", list(por_clave), format_func=lambda k: nombre_lote(por_clave[k]), key="lote"
+            "Lote", list(por_clave), format_func=lambda k: nombre_lote(*k), key="lote"
         )
         lote = por_clave[clave]
-        st.sidebar.progress(lote["hechas"] / lote["total"])
+        st.sidebar.progress(
+            lote["hechas"] / lote["total"], text=f"{lote['hechas']}/{lote['total']} etiquetados"
+        )
 
         ultimo = st.session_state["ultimo"]
         if ultimo and st.sidebar.button("Deshacer la última", shortcut="u"):

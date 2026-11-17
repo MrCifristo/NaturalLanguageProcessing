@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from src.producto.app import guardar, lotes, muestra_propuesta, siguiente
+from src.producto.app import guardar, lotes, muestra_propuesta, nombre_lote, siguiente
 
 
 @pytest.fixture
@@ -68,3 +68,15 @@ def test_deshacer_borra_etiqueta_y_fecha(con_lote):
 )
 def test_regla_de_anclaje(conjunto, ronda, p, esperado):
     assert muestra_propuesta({"conjunto": conjunto, "ronda": ronda, "p_propuesta": p}) is esperado
+
+
+def test_nombre_de_lote_no_cambia_al_etiquetar(con_lote):
+    # Regresión: st.radio guarda la opción por su texto en el navegador. Si el texto llevaba
+    # el avance («3/150»), al etiquetar cambiaba y el radio volvía a la Semilla.
+    def nombres():
+        return [nombre_lote(d["conjunto"], d["ronda"]) for d in lotes(con_lote)]
+
+    antes = nombres()
+    guardar(con_lote, "v-0", False)
+    guardar(con_lote, "e-0", True)
+    assert nombres() == antes == ["Semilla", "Validación"]
